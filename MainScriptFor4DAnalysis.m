@@ -4,7 +4,7 @@ global SpDIM EPSILON
 SpDIM   = 3; % Fixed at 3, immutable parameter.
 EPSILON = 10^(-7);
 %% Inputs
-SelectPreset = 1;% Preset = {1} is available. See ParameterPreset for details for each settings.
+SelectPreset = 2;% Preset = {1,2} is available. See ParameterPreset for details for each settings.
 [RefMeshPresetType,MeshMeasurements,LocalUpdateNum] ...
                             = ParameterPreset(SelectPreset);
 [sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties] ...

@@ -3,7 +3,7 @@ function [SpElemPositionIdx,ElemFineness] = CalcSpElemPositionIdx(MeshMeasuremen
 [SpElemPositionIdx.SpV,ElemFineness.SpV] = CalcSpElemPositionIdx_SpV(MeshMeasurements,ElemPer,Num_of_Elem);
 [SpElemPositionIdx.SpP,ElemFineness.SpP] = CalcSpElemPositionIdx_SpP(MeshMeasurements,ElemPer,Num_of_Elem);
 [SpElemPositionIdx.SpS,ElemFineness.SpS] = CalcSpElemPositionIdx_SpS(MeshMeasurements,ElemPer,Num_of_Elem);
-[SpElemPositionIdx.SpM,ElemFineness.SpN] = CalcSpElemPositionIdx_SpN(MeshMeasurements,ElemPer,Num_of_Elem);
+[SpElemPositionIdx.SpN,ElemFineness.SpN] = CalcSpElemPositionIdx_SpN(MeshMeasurements,ElemPer,Num_of_Elem);
 end
 
 %%
@@ -62,7 +62,7 @@ ElemFineness_SpP      = zeros(1,Num_of_Elem.SpP);
 
 for ZIdx = 1:ZSize    
     for YIdx = 1:YSize
-        for XIdx = 1:XSize
+        for XIdx = 1:XSize+1
             SpPIdxOffset = ...
                 +sum(ElemPer.YZFacePerCoarseGrid(XIdx,1:YIdx-1,ZIdx))...
                 +sum(ElemPer.YZFacePerYRow(1:ZIdx-1,XIdx))...
@@ -77,7 +77,7 @@ end
 
 for XIdx = 1:XSize    
     for ZIdx = 1:ZSize
-        for YIdx = 1:YSize
+        for YIdx = 1:YSize+1
             SpPIdxOffset = ...
                 +sum(ElemPer.ZXFacePerCoarseGrid(XIdx,YIdx,1:ZIdx-1))...
                 +sum(ElemPer.ZXFacePerZRow(1:XIdx-1,YIdx))...
@@ -93,12 +93,12 @@ end
 
 for YIdx = 1:YSize    
     for XIdx = 1:XSize
-        for ZIdx = 1:ZSize
+        for ZIdx = 1:ZSize+1
             SpPIdxOffset = ...
                 +sum(ElemPer.XYFacePerCoarseGrid(1:XIdx-1,YIdx,ZIdx))...
                 +sum(ElemPer.XYFacePerXRow(1:YIdx-1,ZIdx))...
                 +sum(ElemPer.XYFacePerXYPlane(1:ZIdx-1))...
-                +ElemPer.YZFaceNum+ElemNum.ZXFaceNum;
+                +ElemPer.YZFaceNum+ElemPer.ZXFaceNum;
             XYSpPIdx = ...
                 SpPIdxOffset+1:SpPIdxOffset+ElemPer.XYFacePerCoarseGrid(XIdx,YIdx,ZIdx);
             [SpElemPositionIdx_SpP(:,XYSpPIdx),ElemFineness_SpP(XYSpPIdx)] ...
@@ -114,7 +114,7 @@ SpPPositionIdx_Local = zeros(3,ElemPer.YZFacePerCoarseGrid(XIdx,YIdx,ZIdx));
 SpPFineness_Local    = zeros(1,ElemPer.YZFacePerCoarseGrid(XIdx,YIdx,ZIdx));
 
 Fineness = MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx);
-Fineness_XMinus = MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx);
+Fineness_XMinus = MeshMeasurements.LocalGridFineness(max([XIdx-1 1]),YIdx,ZIdx);
 FRatio_XMinus = Fineness_XMinus/Fineness;
 
 PosIdxOffset(1:3,1) = [XIdx-1;YIdx-1;ZIdx-1];
@@ -143,7 +143,7 @@ for LocalZIdx = 1:Fineness
             end
         end
         for LocalXIdx = 2:Fineness
-            Local_YZSpPIdx = LocalYIdx + Fineness*(LocalZIdx-1) + Fineness^2*(LocalXIdx-2)+(FRatio_XMinus*Fineness)^2;
+            Local_YZSpPIdx = LocalYIdx + Fineness*(LocalZIdx-1) + Fineness^2*(LocalXIdx-2)+(max([FRatio_XMinus 1])*Fineness)^2;
             SpPPositionIdx_Local(1:3,Local_YZSpPIdx) = PosIdxOffset ...
                 +(Fineness)^(-1)*[LocalXIdx-1;LocalYIdx-0.5;LocalZIdx-0.5];
             SpPFineness_Local(Local_YZSpPIdx) = Fineness;
@@ -157,7 +157,7 @@ SpPPositionIdx_Local = zeros(3,ElemPer.ZXFacePerCoarseGrid(XIdx,YIdx,ZIdx));
 SpPFineness_Local    = zeros(1,ElemPer.ZXFacePerCoarseGrid(XIdx,YIdx,ZIdx));
 
 Fineness = MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx);
-Fineness_YMinus = MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx);
+Fineness_YMinus = MeshMeasurements.LocalGridFineness(XIdx,max([YIdx-1 1]),ZIdx);
 FRatio_YMinus = Fineness_YMinus/Fineness;
 
 PosIdxOffset(1:3,1) = [XIdx-1;YIdx-1;ZIdx-1];
@@ -186,7 +186,7 @@ for LocalXIdx = 1:Fineness
             end
         end
         for LocalYIdx = 2:Fineness
-            Local_ZXSpPIdx = LocalZIdx + Fineness*(LocalXIdx-1) + Fineness^2*(LocalYIdx-2)+(FRatio_YMinus*Fineness)^2;
+            Local_ZXSpPIdx = LocalZIdx + Fineness*(LocalXIdx-1) + Fineness^2*(LocalYIdx-2)+(max([FRatio_YMinus 1])*Fineness)^2;
             SpPPositionIdx_Local(1:3,Local_ZXSpPIdx) = PosIdxOffset ...
                 +(Fineness)^(-1)*[LocalXIdx-0.5;LocalYIdx-1;LocalZIdx-0.5];
             SpPFineness_Local(Local_ZXSpPIdx) = Fineness;
@@ -197,10 +197,10 @@ end
 
 function [SpPPositionIdx_Local,SpPFineness_Local] = LocallyCalcXYSpPPositionIdx(XIdx,YIdx,ZIdx,MeshMeasurements,ElemPer)
 SpPPositionIdx_Local = zeros(3,ElemPer.XYFacePerCoarseGrid(XIdx,YIdx,ZIdx));
-SpPFineness_Local    = zeros(1,ElemPer.ZXFacePerCoarseGrid(XIdx,YIdx,ZIdx));
+SpPFineness_Local    = zeros(1,ElemPer.XYFacePerCoarseGrid(XIdx,YIdx,ZIdx));
 
 Fineness = MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx);
-Fineness_ZMinus = MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx-1);
+Fineness_ZMinus = MeshMeasurements.LocalGridFineness(XIdx,YIdx,max([ZIdx-1 1]));
 FRatio_ZMinus = Fineness_ZMinus/Fineness;
 
 PosIdxOffset(1:3,1) = [XIdx-1;YIdx-1;ZIdx-1];
@@ -213,7 +213,8 @@ for LocalYIdx = 1:Fineness
                     +(Fineness)^(-1)*[LocalXIdx-0.5;LocalYIdx-0.5;LocalZIdx-1];
                 SpPFineness_Local(Local_XYSpPIdx) = Fineness;
             else
-                LocalPosIdxOffset(1:3,1) = (Fineness)^(-1)*[LocalXIdx-1;LocalYIdx-1;LocalZIdx-1];
+                LocalPosIdxOffset(1:3,1) ...
+                    = (Fineness)^(-1)*[LocalXIdx-1;LocalYIdx-1;LocalZIdx-1];
                 for LocalLocalYIdx = 1:FRatio_ZMinus
                     for LocalLocalXIdx = 1:FRatio_ZMinus
                         Local_XYSpPIdx ...
@@ -229,7 +230,7 @@ for LocalYIdx = 1:Fineness
             end
         end
         for LocalZIdx = 2:Fineness
-            Local_XYSpPIdx = LocalXIdx + Fineness*(LocalYIdx-1) + Fineness^2*(LocalZIdx-2)+(FRatio_ZMinus*Fineness)^2;
+            Local_XYSpPIdx = LocalXIdx + Fineness*(LocalYIdx-1) + Fineness^2*(LocalZIdx-2)+(max([FRatio_ZMinus 1])*Fineness)^2;
             SpPPositionIdx_Local(1:3,Local_XYSpPIdx) = PosIdxOffset ...
                 +(Fineness)^(-1)*[LocalXIdx-0.5;LocalYIdx-0.5;LocalZIdx-1];
             SpPFineness_Local(Local_XYSpPIdx) = Fineness;
@@ -248,8 +249,8 @@ ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 SpElemPositionIdx_SpS = zeros(3,Num_of_Elem.SpS);
 ElemFineness_SpS      = zeros(1,Num_of_Elem.SpS);
 
-for ZIdx = 1:ZSize
-    for YIdx = 1:YSize
+for ZIdx = 1:ZSize+1
+    for YIdx = 1:YSize+1
         for XIdx = 1:XSize
             SpSIdxOffset = ...
                 +sum(ElemPer.XEdgePerCoarseGrid(XIdx,1:YIdx-1,ZIdx))...
@@ -263,9 +264,9 @@ for ZIdx = 1:ZSize
     end
 end
 
-for ZIdx = 1:ZSize
+for ZIdx = 1:ZSize+1
     for YIdx = 1:YSize
-        for XIdx = 1:XSize
+        for XIdx = 1:XSize+1
             SpSIdxOffset = ...
                 +sum(ElemPer.YEdgePerCoarseGrid(XIdx,YIdx,1:ZIdx-1))...
                 +sum(ElemPer.YEdgePerZRow(1:XIdx-1,YIdx))...
@@ -279,8 +280,8 @@ for ZIdx = 1:ZSize
 end
 
 for ZIdx = 1:ZSize
-    for YIdx = 1:YSize
-        for XIdx = 1:XSize
+    for YIdx = 1:YSize+1
+        for XIdx = 1:XSize+1
             SpSIdxOffset = ...
                 +sum(ElemPer.ZEdgePerCoarseGrid(1:XIdx-1,YIdx,ZIdx))...
                 +sum(ElemPer.ZEdgePerXRow(1:YIdx-1,ZIdx))...
@@ -296,13 +297,13 @@ end
 end
 
 function [SpSPositionIdxM_Local,SpSFineness_Local] = LocallyCalcXSpSPositionIdx(XIdx,YIdx,ZIdx,MeshMeasurements,ElemPer)
-SpSPositionIdxM_Local = zeros(3,ElemNum.XEdgePerCoarseGrid(XIdx,YIdx,ZIdx));
-SpSFineness_Local     = zeros(1,ElemNum.XEdgePerCoarseGrid(XIdx,YIdx,ZIdx));
+SpSPositionIdxM_Local = zeros(3,ElemPer.XEdgePerCoarseGrid(XIdx,YIdx,ZIdx));
+SpSFineness_Local     = zeros(1,ElemPer.XEdgePerCoarseGrid(XIdx,YIdx,ZIdx));
 
 Fineness = MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx);
-Fineness_YMinus  = MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx  );
-Fineness_ZMinus  = MeshMeasurements.LocalGridFineness(XIdx,YIdx  ,ZIdx-1);
-Fineness_YZMinus = MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx-1);
+Fineness_YMinus  = MeshMeasurements.LocalGridFineness(XIdx,max([YIdx-1 1])  ,ZIdx           );
+Fineness_ZMinus  = MeshMeasurements.LocalGridFineness(XIdx,YIdx             ,max([ZIdx-1 1]));
+Fineness_YZMinus = MeshMeasurements.LocalGridFineness(XIdx,max([YIdx-1 1])  ,max([ZIdx-1 1]));
 FRatio_YMinus  = Fineness_YMinus/Fineness;
 FRatio_ZMinus  = Fineness_ZMinus/Fineness;
 FRatio_YZMinus = Fineness_YZMinus/Fineness;
@@ -313,10 +314,7 @@ if FRatio_ZMinus<=1 && FRatio_YMinus<=1
         for LocalZIdx = 1:Fineness
             for LocalYIdx = 1:Fineness
                 for LocalXIdx = 1:Fineness
-                    Local_XSpSIdx = LocalYIdx +Fineness*(LocalZIdx-1) +Fineness^2*(LocalXIdx-1)...
-                        +sum(ElemPer.XEdgePerCoarseGrid(XIdx,1:YIdx-1,ZIdx))...
-                        +sum(ElemPer.XEdgePerYRow(1:ZIdx-1,XIdx))...
-                        +sum(ElemPer.XEdgePerYZPlane(1:XIdx-1));
+                    Local_XSpSIdx = LocalYIdx +Fineness*(LocalZIdx-1) +Fineness^2*(LocalXIdx-1);
                     SpSPositionIdxM_Local(:,Local_XSpSIdx) = PosIdxOffset...
                         +(Fineness)^(-1)*[LocalXIdx-0.5;LocalYIdx-1;LocalZIdx-1];
                     SpSFineness_Local(Local_XSpSIdx) = Fineness;
@@ -492,13 +490,13 @@ end
 end
 
 function [SpSPositionIdxM_Local,SpSFineness_Local] = LocallyCalcYSpSPositionIdx(XIdx,YIdx,ZIdx,MeshMeasurements,ElemPer)
-SpSPositionIdxM_Local = zeros(3,ElemNum.YEdgePerCoarseGrid(XIdx,YIdx,ZIdx));
-SpSFineness_Local     = zeros(1,ElemNum.YEdgePerCoarseGrid(XIdx,YIdx,ZIdx));
+SpSPositionIdxM_Local = zeros(3,ElemPer.YEdgePerCoarseGrid(XIdx,YIdx,ZIdx));
+SpSFineness_Local     = zeros(1,ElemPer.YEdgePerCoarseGrid(XIdx,YIdx,ZIdx));
 
 Fineness = MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx);
-Fineness_XMinus  = MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx  );
-Fineness_ZMinus  = MeshMeasurements.LocalGridFineness(XIdx  ,YIdx,ZIdx-1);
-Fineness_ZXMinus = MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx-1);
+Fineness_XMinus  = MeshMeasurements.LocalGridFineness(max([XIdx-1,1])   ,YIdx,ZIdx           );
+Fineness_ZMinus  = MeshMeasurements.LocalGridFineness(XIdx              ,YIdx,max([ZIdx-1,1]));
+Fineness_ZXMinus = MeshMeasurements.LocalGridFineness(max([XIdx-1,1])   ,YIdx,max([ZIdx-1,1]));
 FRatio_XMinus  = Fineness_XMinus/Fineness;
 FRatio_ZMinus  = Fineness_ZMinus/Fineness;
 FRatio_ZXMinus = Fineness_ZXMinus/Fineness;
@@ -510,10 +508,7 @@ if FRatio_XMinus<=1 && FRatio_ZMinus<=1
         for LocalZIdx = 1:Fineness
             for LocalYIdx = 1:Fineness
                 for LocalXIdx = 1:Fineness
-                    Local_YSpSIdx = LocalZIdx +Fineness*(LocalXIdx-1) +Fineness^2*(LocalYIdx-1)...
-                        +sum(ElemPer.YEdgePerCoarseGrid(XIdx,YIdx,1:ZIdx-1))...
-                        +sum(ElemPer.YEdgePerZRow(1:XIdx-1,YIdx))...
-                        +sum(ElemPer.YEdgePerZXPlane(1:YIdx-1));
+                    Local_YSpSIdx = LocalZIdx +Fineness*(LocalXIdx-1) +Fineness^2*(LocalYIdx-1);
                     SpSPositionIdxM_Local(:,Local_YSpSIdx) = PosIdxOffset...
                         +(Fineness)^(-1)*[LocalXIdx-1;LocalYIdx-0.5;LocalZIdx-1];
                     SpSFineness_Local(Local_YSpSIdx) = Fineness;
@@ -691,13 +686,13 @@ end
 
 
 function [SpSPositionIdxM_Local,SpSFineness_Local] = LocallyCalcZSpSPositionIdx(XIdx,YIdx,ZIdx,MeshMeasurements,ElemPer)
-SpSPositionIdxM_Local = zeros(3,ElemNum.ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx));
-SpSFineness_Local     = zeros(1,ElemNum.ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx));
+SpSPositionIdxM_Local = zeros(3,ElemPer.ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx));
+SpSFineness_Local     = zeros(1,ElemPer.ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx));
 
 Fineness = MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx);
-Fineness_XMinus  = MeshMeasurements.LocalGridFineness(XIdx-1,YIdx  ,ZIdx);
-Fineness_YMinus  = MeshMeasurements.LocalGridFineness(XIdx  ,YIdx-1,ZIdx);
-Fineness_XYMinus = MeshMeasurements.LocalGridFineness(XIdx-1,YIdx-1,ZIdx);
+Fineness_XMinus  = MeshMeasurements.LocalGridFineness(max([XIdx-1,1]),YIdx           ,ZIdx);
+Fineness_YMinus  = MeshMeasurements.LocalGridFineness(XIdx           ,max([YIdx-1,1]),ZIdx);
+Fineness_XYMinus = MeshMeasurements.LocalGridFineness(max([XIdx-1,1]),max([YIdx-1,1]),ZIdx);
 FRatio_XMinus  = Fineness_XMinus/Fineness;
 FRatio_YMinus  = Fineness_YMinus/Fineness;
 FRatio_XYMinus = Fineness_XYMinus/Fineness;
@@ -709,10 +704,7 @@ if FRatio_YMinus<=1 && FRatio_XMinus<=1
         for LocalZIdx = 1:Fineness
             for LocalYIdx = 1:Fineness
                 for LocalXIdx = 1:Fineness
-                    Local_ZSpSIdx = LocalXIdx +Fineness*(LocalYIdx-1) +Fineness^2*(LocalZIdx-1)...
-                        +sum(ElemPer.ZEdgePerCoarseGrid(1:XIdx-1,YIdx,ZIdx))...
-                        +sum(ElemPer.ZEdgePerXRow(1:YIdx-1,ZIdx))...
-                        +sum(ElemPer.ZEdgePerXYPlane(1:ZIdx-1));
+                    Local_ZSpSIdx = LocalXIdx +Fineness*(LocalYIdx-1) +Fineness^2*(LocalZIdx-1);
                     SpSPositionIdxM_Local(:,Local_ZSpSIdx) = PosIdxOffset...
                         +(Fineness)^(-1)*[LocalXIdx-1;LocalYIdx-1;LocalZIdx-0.5];
                     SpSFineness_Local(Local_ZSpSIdx) = Fineness;
@@ -914,17 +906,17 @@ end
 end
 
 function  [SpNPositionIdx_Local,SpNFineness_Local] = LocallyCalcSpNPositionIdx(XIdx,YIdx,ZIdx,MeshMeasurements,ElemPer)
-
+% global EPSILON
 SpNPositionIdx_Local = zeros(3,ElemPer.NodePerCoarseGrid(XIdx,YIdx,ZIdx));
 SpNFineness_Local    = zeros(1,ElemPer.NodePerCoarseGrid(XIdx,YIdx,ZIdx));
 
 Fineness = MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx);
-Fineness_XMinus  = MeshMeasurements.LocalGridFineness(XIdx-1,YIdx  ,ZIdx  );
-Fineness_YMinus  = MeshMeasurements.LocalGridFineness(XIdx  ,YIdx-1,ZIdx  );
-Fineness_ZMinus  = MeshMeasurements.LocalGridFineness(XIdx  ,YIdx  ,ZIdx-1);
-Fineness_YZMinus = MeshMeasurements.LocalGridFineness(XIdx  ,YIdx-1,ZIdx-1);
-Fineness_ZXMinus = MeshMeasurements.LocalGridFineness(XIdx-1,YIdx  ,ZIdx-1);
-Fineness_XYMinus = MeshMeasurements.LocalGridFineness(XIdx-1,YIdx-1,ZIdx  );
+Fineness_XMinus  = MeshMeasurements.LocalGridFineness(sum([XIdx-1,1]),YIdx           ,ZIdx           );
+Fineness_YMinus  = MeshMeasurements.LocalGridFineness(XIdx           ,sum([YIdx-1,1]),ZIdx           );
+Fineness_ZMinus  = MeshMeasurements.LocalGridFineness(XIdx           ,YIdx           ,sum([ZIdx-1,1]));
+Fineness_YZMinus = MeshMeasurements.LocalGridFineness(XIdx           ,sum([YIdx-1,1]),sum([ZIdx-1,1]));
+Fineness_ZXMinus = MeshMeasurements.LocalGridFineness(sum([XIdx-1,1]),YIdx           ,sum([ZIdx-1,1]));
+Fineness_XYMinus = MeshMeasurements.LocalGridFineness(sum([XIdx-1,1]),sum([YIdx-1,1]),ZIdx           );
 
 FRatio_XMinus  = Fineness_XMinus/Fineness;
 FRatio_YMinus  = Fineness_YMinus/Fineness;
@@ -940,12 +932,12 @@ FRatioOnLocalPosXeqYeq0 = max([FRatio_XMinus FRatio_YMinus FRatio_XYMinus]);
 FRatio_OnEdges = [FRatioOnLocalPosYeqZeq0 FRatioOnLocalPosZeqXeq0 FRatioOnLocalPosXeqYeq0];
 
 if any(FRatio_OnEdges(logical(FRatio_OnEdges~=1))~=FRatio_OnEdges(find(FRatio_OnEdges~=1,1)))
-    disp('LocallyCalcSpNPositionIdx:Unexpected Fineness pattern')
+    disp('LocallyCalcSpNPositionIdx:Unexpected Fineness pattern 1')
 end
 
-if abs(FRatioOnLocalPosXeqYeq0/FRatio_YMinus-FRatioOnLocalPosXeqYeq0)<EPSILON
-    disp('LocallyCalcSpNPositionIdx:Unexpected Fineness pattern ')
-end
+% if abs(FRatioOnLocalPosXeqYeq0/FRatio_YMinus-FRatioOnLocalPosXeqYeq0)<EPSILON
+%     disp('LocallyCalcSpNPositionIdx:Unexpected Fineness pattern 2')
+% end
 
 PosIdxOffset(1:3,1) = [XIdx-1;YIdx-1;ZIdx-1];
 Local_SpNNum = 0; 
@@ -962,14 +954,15 @@ for LocalZIdx = 1
                     SpNPositionIdx_Local([2 3],Local_SpNIdx)...
                         = PosIdxOffset([2 3]) + LocalPosIdxOffset([2 3]);
                     Local_SpNNum = Local_SpNNum + FRatioOnLocalPosYeqZeq0;
-                    
-                    Local_SpNIdx = Local_SpNNum + (2:FRatioOnLocalPosZeqXeq0);
-                    SpNPositionIdx_Local(2,Local_SpNIdx) ...
-                        = PosIdxOffset(2) + LocalPosIdxOffset(2) ...
-                        + (Fineness*FRatioOnLocalPosZeqXeq0)^(-1)*((2:FRatioOnLocalPosZeqXeq0)-1);
-                    SpNPositionIdx_Local([1 3],Local_SpNIdx)...
-                        = PosIdxOffset([1 3]) + LocalPosIdxOffset([1 3]);
-                    Local_SpNNum = Local_SpNNum + FRatioOnLocalPosZeqXeq0-1;
+                    for LocalLocalYIdx = 2:FRatioOnLocalPosZeqXeq0
+                        Local_SpNIdx = Local_SpNNum + LocalLocalYIdx;
+                        SpNPositionIdx_Local(2,Local_SpNIdx) ...
+                            = PosIdxOffset(2) + LocalPosIdxOffset(2) ...
+                            + (Fineness*FRatioOnLocalPosZeqXeq0)^(-1)*(LocalLocalYIdx-1);
+                        SpNPositionIdx_Local([1 3],Local_SpNIdx)...
+                            = PosIdxOffset([1 3]) + LocalPosIdxOffset([1 3]);
+                        Local_SpNNum = Local_SpNNum + FRatioOnLocalPosZeqXeq0-1;
+                    end
                 else
                     Local_SpNIdx = Local_SpNNum + (1:FRatio_ZMinus^2);
                     SpNPositionIdx_Local(1,Local_SpNIdx) ...
