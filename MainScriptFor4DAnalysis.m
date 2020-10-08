@@ -1,16 +1,17 @@
-clear;
+% TODO 1 Properties_of_Sp_Elements, PML part
+% TODO 2 RefMesh_Subgrid, Corner
+% TODO 3 Kappa, NonOrthogonal 
+% TODO 4 Kappa, Corner
 
+clear;
 global SpDIM EPSILON
 SpDIM   = 3; % Fixed at 3, immutable parameter.
 EPSILON = 10^(-7);
 %% Inputs
 SelectPreset = 2;% Preset = {1,2} is available. See ParameterPreset for details for each settings.
-[RefMeshPresetType,MeshMeasurements,LocalUpdateNum] ...
-                            = ParameterPreset(SelectPreset);
-[sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties] ...
-                            = GenerateReferenceMesh_3D_Sp(RefMeshPresetType,MeshMeasurements,LocalUpdateNum);
-% RefImpedance_SpV           = GenerateReferenceImpedancePattern();
-RefImpedance_SpV            = ones(Num_of_Elem.SpV,1);
+[RefMeshPresetType,MeshMeasurements,LocalUpdateNum] = ParameterPreset(SelectPreset);
+[sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties] = GenerateReferenceMesh_3D_Sp(RefMeshPresetType,MeshMeasurements,LocalUpdateNum);
+RefImpedance_SpV = ones(Num_of_Elem.SpV,1);
 
 %%
 [SpElemProperties,STElemProperties,Num_of_Elem,PrimFacePos] = Properties_of_Sp_Elements(sG,sC,sD,SpElemProperties,Num_of_Elem,NodePos);
@@ -35,7 +36,6 @@ Map_SpElem_to_FirstGlobTask = struct;
 
 TaskOrder = SortTasks(Task,TaskDepGraph,STElemProperties,D1,D2);
 
-%clearvars TaskDepGraph;
 disp('point3')
 
 cdt = 0.1;
@@ -45,14 +45,13 @@ disp(['cdt = ', num2str(cdt)])
 disp('point4')
 Z = ComputeImpedance_for_EachSTPs(RefImpedance_SpV,sC,sD,SpElemProperties,Num_of_Elem);
 Kappa_over_Z = kappa./Z;
-disp('point5')
 
-% compute RefSigma.{SpP, SpS}.{OneTwoThree, TwoThreeOne, ThreeOneTwo}
-% For primal reference-faces(dual   reference-edges), weight sigma by relative lengths.
-% For dual   reference-faces(primal reference-edges), weight sigma by relative areas. 
+disp('point4.1')
+
 [Sigma] = ComputePMLSigma_3D_Space(cdt,NodePos,sG,sD,SpElemProperties,Num_of_Elem);
 
 %% 
+disp('point5')
 Source                      = SourceFDTD(MeshMeasurements,SpElemProperties,sC);
 Num_of_Elem.STSource        = 0;
 for SpSourceIdx = 1:size(Source,2) 

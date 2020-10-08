@@ -1,4 +1,7 @@
 function [Sigma] = ComputePMLSigma_3D_Space(cdt,NodePos,sG,sD,SpElemProperties,Num_of_Elem)
+% compute RefSigma.{SpP, SpS}.{OneTwoThree, TwoThreeOne, ThreeOneTwo}
+% For primal reference-faces(dual   reference-edges), weight sigma by relative lengths.
+% For dual   reference-faces(primal reference-edges), weight sigma by relative areas. 
 
 Sigma.SpP.OneTwoThree = sparse(Num_of_Elem.SpP,1);
 Sigma.SpP.TwoThreeOne = sparse(Num_of_Elem.SpP,1);
