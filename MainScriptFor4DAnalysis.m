@@ -1,14 +1,18 @@
-% TODO 1 Properties_of_Sp_Elements, PML part
-% TODO 2 RefMesh_Subgrid, Corner
-% TODO 3 Kappa, NonOrthogonal 
-% TODO 4 Kappa, Corner
+% DONE 1 Properties_of_Sp_Elements, PML part
+% DONE 2 RefMesh_Subgrid, Corner
+% DONE 3 RefMesh_Subgrid, Boundary Conditions 
+% DONE 4 RefMesh_Subgrid, Given area and lengths
+% TODO 5 Kappa, NonOrthogonal 
+% TODO 6 Kappa, Corner % もし角なら二つとなりの境界の節点から取ってくる。　ふちなら隣から取ってくる
+% TODO 7 Source
+% TODO 8 Plotfunctions
 
 clear;
 global SpDIM EPSILON
 SpDIM   = 3; % Fixed at 3, immutable parameter.
 EPSILON = 10^(-7);
 %% Inputs
-SelectPreset = 2;% Preset = {1,2} is available. See ParameterPreset for details for each settings.
+SelectPreset = 1; % Preset = {1,2} is available. See ParameterPreset for details for each settings.
 [RefMeshPresetType,MeshMeasurements,LocalUpdateNum] = ParameterPreset(SelectPreset);
 [sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties] = GenerateReferenceMesh_3D_Sp(RefMeshPresetType,MeshMeasurements,LocalUpdateNum);
 RefImpedance_SpV = ones(Num_of_Elem.SpV,1);
@@ -70,7 +74,8 @@ Num_of_Steps                = 10000;
 disp(['Number of Steps = ', num2str(Num_of_Steps)])
 Time                        = 0;
 disp('point6')
-FieldDoFs_Face_Edge_PMLFace_PMLEdge         = TimeMarch(Num_of_Steps,Time,cdt,TMM_Fields,TMM_Sources,FieldDoFs_Face_Edge_PMLFace_PMLEdge,Source);
+FieldDoFs_Face_Edge_PMLFace_PMLEdge = TimeMarch(Num_of_Steps,Time,cdt,TMM_Fields,TMM_Sources,FieldDoFs_Face_Edge_PMLFace_PMLEdge,Source);
+disp('point7')
 ZConst                      = round(0.5*MeshMeasurements.ZCoord/MeshMeasurements.dz);
 PlotMagneticFluxDensity_atZEquals(ZConst,FieldDoFs_Face_Edge_PMLFace_PMLEdge,FaceArea,PrimFacePos,SpElemProperties,MeshMeasurements)
 YConst                      = round(0.5*MeshMeasurements.YCoord/MeshMeasurements.dy);

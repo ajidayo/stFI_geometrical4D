@@ -40,6 +40,9 @@ for SpSIdx = find(SpElemProperties.SpS.UpdNumBoundary)
 end
 
 for SpPIdx = find(SpElemProperties.SpP.UpdNumBoundary)
+    if ~any(SpElemProperties.SpS.PEC(logical(sC(SpPIdx,:))))
+        continue;
+    end
     SpNIdx_DefPrimFace = find(logical(sC(SpPIdx,:))*logical(sG));
     for Time = 1:SpElemProperties.SpP.UpdNum(SpPIdx)-1
         DeltaSTN_Fetch = [0;0;0];
@@ -57,6 +60,29 @@ for SpPIdx = find(SpElemProperties.SpP.UpdNumBoundary)
         for SpNIdx = SpNIdx_DefPrimFace
             STNIdx = SpElemProperties.SpN.FirstSTNIdx(SpNIdx)+Time;
             DeltaSTNPos(:,STNIdx) = DeltaSTN_Fetch;
+        end
+    end
+end
+
+for SpNIdx = find(SpElemProperties.SpN.UpdNumCorner)
+    UpdNum_tgt = SpElemProperties.SpN.UpdNum(SpNIdx);
+    for Time = 1:UpdNum_tgt-1
+        STNIdx_tgt = SpElemProperties.SpN.FirstSTNIdx(SpNIdx)+Time;
+        DeltaSTNPos(:,STNIdx_tgt) = [0;0;0];
+        AdjSpNIdx_List = find(logical(sG(:,SpNIdx).')*logical(sG));
+        AdjSpNIdx_List = AdjSpNIdx_List(logical(SpElemProperties.SpN.UpdNum(AdjSpNIdx_List)==UpdNum_tgt));
+        AdjSpN_NotOnCorner_List =  AdjSpNIdx_List(~logical(SpElemProperties.SpN.UpdNumCorner(AdjSpNIdx_List)));
+        if size(AdjSpN_NotOnCorner_List,2) > 0
+            for AdjSpN_NotOnCorner_Idx = AdjSpN_NotOnCorner_List
+                STNIdx_Fetch = SpElemProperties.SpN.FirstSTNIdx(AdjSpN_NotOnCorner_Idx)+Time;
+                DeltaSTNPos(:,STNIdx_tgt) = DeltaSTNPos(:,STNIdx_tgt) + DeltaSTNPos(:,STNIdx_Fetch);
+            end
+        else
+            AdjAdjSpN_List = find(logical(sG(:,SpNIdx).')*logical(sG)*logical(sG.')*logical(sG));
+            for AdjAdjSpN_NotOnCorner_Idx = unique(AdjAdjSpN_List(~logical(SpElemProperties.SpN.UpdNumCorner(AdjAdjSpN_List))))
+                STNIdx_Fetch = SpElemProperties.SpN.FirstSTNIdx(AdjAdjSpN_NotOnCorner_Idx)+Time;
+                DeltaSTNPos(:,STNIdx_tgt) = DeltaSTNPos(:,STNIdx_tgt) + DeltaSTNPos(:,STNIdx_Fetch);
+            end
         end
     end
 end
@@ -97,9 +123,6 @@ for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
             SpNIdx = STElemProperties.STN.RefSpN(STNIdx);
             PosVec_SpatialPart(:,ColIdx) = NodePos.Prim(SpNIdx).Vec + DeltaSTNPos(:,STNIdx);
         end
-%         if STPIdx == 16
-%             disp('hoge')
-%         end
         Area_PrimSTP  = norm(VectorArea3D(PosVec_SpatialPart));
         if STPIdx == SpElemProperties.SpP.FirstSTPIdx(SpPIdx)
             FaceArea.Prim(SpPIdx) = Area_PrimSTP;
@@ -147,11 +170,12 @@ end
 end
 %%
 function DeltaSTNPos = Compute_DeltaSTNPos_for_SingleBoundaryEdge(SpSIdx,DeltaSTNPos,NodePos,PrimEdgeTgtLeng,DualFaceTgtArea,sG,sC,D2,D3,SpElemProperties,STElemProperties,cdt)
+global EPSILON
 kappa       = -1*DualFaceTgtArea/(PrimEdgeTgtLeng*cdt/SpElemProperties.SpS.UpdNum(SpSIdx));
 LocalBasis1 = findDeltaDirection(SpSIdx,sG,sC,NodePos.Prim,SpElemProperties);
-% if LocalBasis1(1)==0
-%     disp(SpSIdx)
-% end
+if norm(LocalBasis1)<EPSILON
+    disp(SpSIdx)
+end
 SpS_Direc   = [NodePos.Prim(logical(sG(SpSIdx,:))).Vec]*sG(SpSIdx,logical(sG(SpSIdx,:))).';
 LocalBasis2 = SpS_Direc - dot(SpS_Direc,LocalBasis1)*LocalBasis1;
 LocalBasis2 = LocalBasis2/norm(LocalBasis2);

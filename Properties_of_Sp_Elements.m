@@ -1,4 +1,6 @@
 function [SpElemProperties,STElemProperties,Num_of_Elem,PrimFacePos] = Properties_of_Sp_Elements(sG,sC,sD,SpElemProperties,Num_of_Elem,NodePos)
+global EPSILON
+
 %% UpdNum
 UpdNum_SpV = SpElemProperties.SpV.UpdNum;
 UpdNum_SpP = zeros(Num_of_Elem.SpP,1);
@@ -16,6 +18,7 @@ end
 SpElemProperties.SpP.UpdNum=UpdNum_SpP;
 SpElemProperties.SpS.UpdNum=UpdNum_SpS;
 SpElemProperties.SpN.UpdNum=UpdNum_SpN;
+
 %% FirstSTNIdx, RefSpN
 CurrentSTNIdx=1;
 for SpNIdx=1:Num_of_Elem.SpN
@@ -108,7 +111,6 @@ for SpPIdx = 1:Num_of_Elem.SpP
     else
         SpElemProperties.SpP.Belong_to_ST_FI(SpPIdx) = true;
         SpElemProperties.SpP.UpdNumBoundary(SpPIdx)  = true;
-        %        SpElemProperties.SpP.Belong_to_ST_FI(logical(AdjM_SpP_via_SpV(SpPIdx,:))) = true;
         for IncSpS = find(sC(SpPIdx,:))
             SpElemProperties.SpS.UpdNumBoundary(IncSpS)  = true;
             SpElemProperties.SpS.Belong_to_ST_FI(IncSpS) = true;
@@ -123,45 +125,64 @@ for SpSIdx = find(SpElemProperties.SpS.Belong_to_ST_FI==true)
         SpElemProperties.SpS.Belong_to_ST_FI(AdjSpS) = true;
     end
 end
+
 % SpElemProperties.SpN.Belong_to_ST_FI = logical(sparse(1,Num_of_Elem.SpN));
 % for SpSIdx = find(SpElemProperties.SpS.Belong_to_ST_FI)
 %     for IncSpN = find(sG(SpSIdx,:))
 %         SpElemProperties.SpN.Belong_to_ST_FI(IncSpN) = true;
 %     end
 % end
-% SpElemProperties.SpV.Belong_to_ST_FI = logical(sparse(1,Num_of_Elem.SpV));
+
+SpElemProperties.SpV.Belong_to_ST_FI = logical(sparse(1,Num_of_Elem.SpV));
 for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
     for IncSpV = find(sD(:,SpPIdx).')
         SpElemProperties.SpV.Belong_to_ST_FI(IncSpV) = true;
     end
 end
+
 %dummy 
 SpElemProperties.SpS.UpdNumCorner = logical(sparse(1,Num_of_Elem.SpS));
-
+SpElemProperties.SpN.UpdNumCorner = logical(sparse(1,Num_of_Elem.SpN));
+for SpSIdx = find(SpElemProperties.SpS.UpdNumCorner)
+    SpElemProperties.SpN.UpdNumCorner(logical(sG(SpSIdx,:))) = true;
+end
 %% PML, Dummy
 SpElemProperties.SpS.PML        = false(1,Num_of_Elem.SpS);
 SpElemProperties.SpP.PML        = false(1,Num_of_Elem.SpP);
-VolPerXRow          = XSize;
-VolPerXYPlane       = XSize*YSize;
-for ZIdx = 1:ZSize
-    for YIdx = 1:YSize
-        for XIdx = 1:XSize
-            x = (XIdx-0.5)*MeshMeasurements.dx;
-            y = (YIdx-0.5)*MeshMeasurements.dy;
-            z = (ZIdx-0.5)*MeshMeasurements.dz;
-            if  abs(func_sigma_123(1,x,y,z))>EPSILON || abs(func_sigma_123(2,x,y,z))>EPSILON || abs(func_sigma_123(3,x,y,z))>EPSILON
-                SpVIdx = XIdx + (YIdx-1)*VolPerXRow + (ZIdx-1)*VolPerXYPlane;
-                for IncSpPIdx = find(sD(SpVIdx,:))
-                    SpElemProperties.SpP.PML(IncSpPIdx)=true;
-                    for IncSpSIdx = find(sC(IncSpPIdx,:))
-                        SpElemProperties.SpS.PML(IncSpSIdx)=true;
-                    end
-                end
+for SpVIdx = 1:Num_of_Elem.SpV
+    x = NodePos.Dual(SpVIdx).Vec(1);
+    y = NodePos.Dual(SpVIdx).Vec(2);
+    z = NodePos.Dual(SpVIdx).Vec(3);
+    if  abs(func_sigma_123(1,x,y,z))>EPSILON || abs(func_sigma_123(2,x,y,z))>EPSILON || abs(func_sigma_123(3,x,y,z))>EPSILON
+        for IncSpPIdx = find(sD(SpVIdx,:))
+            SpElemProperties.SpP.PML(IncSpPIdx)=true;
+            for IncSpSIdx = find(sC(IncSpPIdx,:))
+                SpElemProperties.SpS.PML(IncSpSIdx)=true;
             end
         end
     end
 end
-
+% VolPerXRow          = XSize;
+% VolPerXYPlane       = XSize*YSize;
+% for ZIdx = 1:ZSize
+%     for YIdx = 1:YSize
+%         for XIdx = 1:XSize
+%             x = (XIdx-0.5)*MeshMeasurements.dx;
+%             y = (YIdx-0.5)*MeshMeasurements.dy;
+%             z = (ZIdx-0.5)*MeshMeasurements.dz;
+%             if  abs(func_sigma_123(1,x,y,z))>EPSILON || abs(func_sigma_123(2,x,y,z))>EPSILON || abs(func_sigma_123(3,x,y,z))>EPSILON
+%                 SpVIdx = XIdx + (YIdx-1)*VolPerXRow + (ZIdx-1)*VolPerXYPlane;
+%                 for IncSpPIdx = find(sD(SpVIdx,:))
+%                     SpElemProperties.SpP.PML(IncSpPIdx)=true;
+%                     for IncSpSIdx = find(sC(IncSpPIdx,:))
+%                         SpElemProperties.SpS.PML(IncSpSIdx)=true;
+%                     end
+%                 end
+%             end
+%         end
+%     end
+% end
+% 
 SpElemProperties.SpP.FirstPMLImagDualSTP=sparse(1,Num_of_Elem.SpP);
 SpElemProperties.SpS.FirstPMLImagDualSTP=sparse(1,Num_of_Elem.SpS);
 

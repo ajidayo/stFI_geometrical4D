@@ -3,9 +3,9 @@ switch SelectPreset
     case 1
         RefMeshPresetType = 'FDTD';
         LocalUpdateNum = 2;
-        MeshMeasurements.XCoord = 10;
-        MeshMeasurements.YCoord = 10;
-        MeshMeasurements.ZCoord = 10;
+        MeshMeasurements.XCoord = 30;
+        MeshMeasurements.YCoord = 18;
+        MeshMeasurements.ZCoord = 18;
         MeshMeasurements.dx = 1;
         MeshMeasurements.dy = 1;
         MeshMeasurements.dz = 1;
