@@ -1,9 +1,9 @@
 function [sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties] ...
     = FDTD_RefMesh(MeshMeasurements,LocalUpdateNum)
 % global EPSILON
-XSize = MeshMeasurements.XCoord/MeshMeasurements.dx;
-YSize = MeshMeasurements.YCoord/MeshMeasurements.dy;
-ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dz;
+XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
+YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
+ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 
 Num_of_Elem.SpV = XSize*YSize*ZSize;
 Num_of_Elem.SpP = ...

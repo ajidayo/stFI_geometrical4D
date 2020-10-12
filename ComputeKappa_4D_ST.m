@@ -15,31 +15,29 @@ end
 function [kappa,FaceArea] = ComputeKappa_for_STFI_SpPs_and_SpSs(kappa,FaceArea,DeltaSTNPos,cdt,sG,sC,sD,D0,D1,D2,D3,NodePos,SpElemProperties,STElemProperties)
 
 for SpSIdx = find(SpElemProperties.SpS.UpdNumBoundary)
-    if SpElemProperties.SpS.PEC(SpSIdx) == true
+    if any(SpElemProperties.SpN.UpdNumCorner(logical(sG(SpSIdx,:))))
+        continue;
+    elseif SpElemProperties.SpS.PEC(SpSIdx) == true
         for STPIdx = SpElemProperties.SpS.FirstSTPIdx(SpSIdx):...
                 SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+SpElemProperties.SpS.UpdNum(SpSIdx)
             kappa(STPIdx) = -1;
         end
         FaceArea.Dual(SpSIdx) = 1;
         continue;
-    elseif SpElemProperties.SpS.UpdNumCorner == true
-        continue;
-    else
-        PrimEdgeTgtLeng = SpEdgeLength(SpSIdx,sG,NodePos.Prim);
-        DualFaceTgtArea = SpFaceArea(SpSIdx,sD.',sC.',NodePos.Dual);
-        Area_PrimSTP = PrimEdgeTgtLeng*cdt/SpElemProperties.SpS.UpdNum(SpSIdx);
-        Area_DualSTP = DualFaceTgtArea;
-        for STPIdx = SpElemProperties.SpS.FirstSTPIdx(SpSIdx):...
-                SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+SpElemProperties.SpS.UpdNum(SpSIdx)
-            kappa(STPIdx) = -1*Area_DualSTP/Area_PrimSTP;
-        end
-        FaceArea.Dual(SpSIdx) = Area_DualSTP;
-        DeltaSTNPos = ...
-            Compute_DeltaSTNPos_for_SingleBoundaryEdge(SpSIdx,DeltaSTNPos,NodePos,PrimEdgeTgtLeng,DualFaceTgtArea,sG,sC,D2,D3,SpElemProperties,STElemProperties,cdt);
-    end 
+    end
+    PrimEdgeTgtLeng = SpEdgeLength(SpSIdx,sG,NodePos.Prim);
+    DualFaceTgtArea = SpFaceArea(SpSIdx,sD.',sC.',NodePos.Dual);
+    Area_PrimSTP = PrimEdgeTgtLeng*cdt/SpElemProperties.SpS.UpdNum(SpSIdx);
+    Area_DualSTP = DualFaceTgtArea;
+    STPIdxList_RefferingSpS = ...
+        SpElemProperties.SpS.FirstSTPIdx(SpSIdx):SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+SpElemProperties.SpS.UpdNum(SpSIdx);
+    kappa(STPIdxList_RefferingSpS) = -1*Area_DualSTP/Area_PrimSTP;
+    FaceArea.Dual(SpSIdx) = Area_DualSTP;
+    DeltaSTNPos = ...
+        Compute_DeltaSTNPos_for_SingleBoundaryEdge(SpSIdx,DeltaSTNPos,NodePos,PrimEdgeTgtLeng,DualFaceTgtArea,sG,sC,D2,D3,SpElemProperties,STElemProperties,cdt);
 end
 
-for SpPIdx = find(SpElemProperties.SpP.UpdNumBoundary)
+for SpPIdx = find(SpElemProperties.SpP.UpdNumBoundary) % compute Delta for SpSs on outer boundaries
     if ~any(SpElemProperties.SpS.PEC(logical(sC(SpPIdx,:))))
         continue;
     end
@@ -87,10 +85,18 @@ for SpNIdx = find(SpElemProperties.SpN.UpdNumCorner)
     end
 end
 
-for SpSIdx = find(SpElemProperties.SpS.Belong_to_ST_FI==true)
-    if SpElemProperties.SpS.UpdNumBoundary(SpSIdx)==true
+for SpSIdx = find(SpElemProperties.SpS.UpdNumBoundary)
+    if ~any(SpElemProperties.SpN.UpdNumCorner(logical(sG(SpSIdx,:))))
         continue;
-    elseif SpElemProperties.SpS.PEC(SpSIdx) == true
+    end  
+    STPIdxList_RefferingSpS = SpElemProperties.SpS.FirstSTPIdx(SpSIdx):SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+SpElemProperties.SpS.UpdNum(SpSIdx);
+    [kappa(STPIdxList_RefferingSpS), FaceArea.Dual(SpSIdx)] = ...
+        ComputeKappa_for_SingleSpS(SpSIdx,cdt,sG,sC,sD,DeltaSTNPos,NodePos,SpElemProperties);
+end
+
+STFISpSList = find(SpElemProperties.SpS.Belong_to_ST_FI);
+for SpSIdx = STFISpSList(~SpElemProperties.SpS.UpdNumBoundary(logical(SpElemProperties.SpS.Belong_to_ST_FI)))
+    if SpElemProperties.SpS.PEC(SpSIdx) == true
         for STPIdx = SpElemProperties.SpS.FirstSTPIdx(SpSIdx):...
                 SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+SpElemProperties.SpS.UpdNum(SpSIdx)
             kappa(STPIdx) = -1;
@@ -98,8 +104,9 @@ for SpSIdx = find(SpElemProperties.SpS.Belong_to_ST_FI==true)
         FaceArea.Dual(SpSIdx) = 1;
         continue;
     end
-    [kappa, FaceArea.Dual(SpSIdx)] = ...
-        ComputeKappa_for_SingleNonBoundarySpS(kappa,SpSIdx,cdt,sG,sC,sD,DeltaSTNPos,NodePos,SpElemProperties);
+    STPIdxList_RefferingSpS = SpElemProperties.SpS.FirstSTPIdx(SpSIdx):SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+SpElemProperties.SpS.UpdNum(SpSIdx);
+    [kappa(STPIdxList_RefferingSpS), FaceArea.Dual(SpSIdx)] = ...
+        ComputeKappa_for_SingleSpS(SpSIdx,cdt,sG,sC,sD,DeltaSTNPos,NodePos,SpElemProperties);
 end
 
 for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
@@ -111,9 +118,10 @@ for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
         FaceArea.Prim(SpPIdx) = 1;
         continue;
     end
-    
-    for STPIdx = SpElemProperties.SpP.FirstSTPIdx(SpPIdx):...
-            SpElemProperties.SpP.FirstSTPIdx(SpPIdx)+SpElemProperties.SpP.UpdNum(SpPIdx)-1
+    for Time = 0:SpElemProperties.SpP.UpdNum(SpPIdx)-1
+        STPIdx = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)+Time;
+        LocalBasis3 = [NodePos.Dual(logical(sD(:,SpPIdx).')).Vec]*sD(logical(sD(:,SpPIdx)),SpPIdx);
+        LocalBasis3 = LocalBasis3/norm(LocalBasis3);
         STNIdx_DefPrimFace = find(logical(D1(STPIdx,:))*logical(D0));
         STNIdx_DefPrimFace = SortNodesAlongFaceOrientation(STNIdx_DefPrimFace,STPIdx,D0   ,D1   );
         PosVec_SpatialPart = zeros(3,size(STNIdx_DefPrimFace,2));
@@ -122,32 +130,14 @@ for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
             ColIdx = ColIdx +1;
             SpNIdx = STElemProperties.STN.RefSpN(STNIdx);
             PosVec_SpatialPart(:,ColIdx) = NodePos.Prim(SpNIdx).Vec + DeltaSTNPos(:,STNIdx);
+            % project prim face to perp-plane of the dual Sp-edge (perp to LocalBasis3)
+            % PosVec_SpatialPart(:,ColIdx) = PosVec_SpatialPart(:,ColIdx)-dot(PosVec_SpatialPart(:,ColIdx),LocalBasis3)*LocalBasis3;
         end
         Area_PrimSTP  = norm(VectorArea3D(PosVec_SpatialPart));
         if STPIdx == SpElemProperties.SpP.FirstSTPIdx(SpPIdx)
             FaceArea.Prim(SpPIdx) = Area_PrimSTP;
         end
-%        FaceAreaPrimSTP(STPIdx) = Area_PrimSTP;
-        LocalBasis3 = [NodePos.Dual(logical(sD(:,SpPIdx).')).Vec]*sD(logical(sD(:,SpPIdx)),SpPIdx);
-        LocalBasis3 = LocalBasis3/norm(LocalBasis3);
         STNTilIdx_DefDualFace = find(logical(D2(:,STPIdx)).'*logical(D3).');
-        %         SignFlipper_STP(1:Num_of_Elem.SplikeSTP,1) ...
-        %             =    ones(Num_of_Elem.SplikeSTP,1);
-        %         SignFlipper_STP(Num_of_Elem.SplikeSTP+1:Num_of_Elem.STP,1) ...
-        %             = -1*ones(Num_of_Elem.TilikeSTP,1);
-        %         SignFlipper_STOmega(1:Num_of_Elem.SplikeSTOmega,1) ...
-        %             =    ones(Num_of_Elem.SplikeSTOmega,1);
-        %         SignFlipper_STOmega(Num_of_Elem.SplikeSTOmega+1:Num_of_Elem.STOmega,1) ...
-        %             = -1*ones(Num_of_Elem.TilikeSTOmega,1);
-        %         STNTildeIdx_DefiningDualFace = SortSTNsAlongFaceOrientation(STNTildeIdx_DefiningDualFace,STPIdx,...
-        %             (D3...
-        %             *spdiags(SignFlipper_STOmega,0,Num_of_Elem.STOmega,Num_of_Elem.STOmega)...
-        %             ).' ,...
-        %             (spdiags(SignFlipper_STOmega,0,Num_of_Elem.STOmega,Num_of_Elem.STOmega)...
-        %             *D2...
-        %             *spdiags(SignFlipper_STP,0,Num_of_Elem.STP,Num_of_Elem.STP)...
-        %             ).' ...
-        %             );
         STNTilIdx_DefDualFace = SortNodesAlongFaceOrientation(STNTilIdx_DefDualFace,STPIdx,D3.' ,D2.');
         PosVec_Projected_to_03Plane  = zeros(2,size(STNTilIdx_DefDualFace,2));
         Row0 = 1;
@@ -160,7 +150,6 @@ for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
             PosVec_Projected_to_03Plane(Row3,ColIdx) = dot(NodePos.Dual(SpNTildeIdx).Vec, LocalBasis3);
         end
         Area_DualSTP = abs(SignedArea2D(PosVec_Projected_to_03Plane));
-        
         kappa(STPIdx) = Area_DualSTP/Area_PrimSTP;
     end
     STP_First = SpElemProperties.SpP.FirstSTPIdx(SpPIdx);
@@ -189,14 +178,14 @@ for STPIdx = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+1:...
     STNIdx_Past = STNIdx_Past+1;
     STNIdx_Futr = STNIdx_Futr+1;
     
-    STNTilIdx_DefDualFace = find(logical(D2(:,STPIdx)).'*logical(D3).');
-    STNTilIdx_DefDualFace = SortNodesAlongFaceOrientation(STNTilIdx_DefDualFace,STPIdx,D3.' ,D2.' );
-    PosVec_Projected_to_03Plane = zeros(2,size(STNTilIdx_DefDualFace,2));
+    DualSTNIdx_DefDualFace = find(logical(D2(:,STPIdx)).'*logical(D3).');
+    DualSTNIdx_DefDualFace = SortNodesAlongFaceOrientation(DualSTNIdx_DefDualFace,STPIdx,D3.' ,D2.' );
+    PosVec_Projected_to_03Plane = zeros(2,size(DualSTNIdx_DefDualFace,2));
     
     Row0 = 1;
     Row3 = 2;
     ColIdx = 0;
-    for STNTildeIdx = STNTilIdx_DefDualFace 
+    for STNTildeIdx = DualSTNIdx_DefDualFace 
         ColIdx = ColIdx +1;
         PosVec_Projected_to_03Plane(Row0,ColIdx) = cdt *STElemProperties.STV.TimeIdx(STNTildeIdx);
         SpNTildeIdxTemp                          =      STElemProperties.STV.RefSpV(STNTildeIdx);
@@ -235,20 +224,17 @@ end
 end
 
 %%
-function SortedNodesIdx = SortNodesAlongFaceOrientation(NodesDefiningFace_Idxs,STPTar,GradM,CurlM)
+function SortedNodesIdx = SortNodesAlongFaceOrientation(NodesDefiningFace_Idxs,FaceTar,GradM,CurlM)
 InputNodesNum = size(NodesDefiningFace_Idxs,2);
 SortedNodesIdx = zeros(1,InputNodesNum);
 LeftNodes = NodesDefiningFace_Idxs;
 SortedNodesIdx(1) = NodesDefiningFace_Idxs(1);
 LeftNodes(1) = [];
 ProgressIdx=1;
-%STPTar
 for Counter = 2:InputNodesNum
-    %Counter
-    %ProgressIdx 
-    for EdgeIdx = find(CurlM(STPTar,:))
+    for EdgeIdx = find(CurlM(FaceTar,:))
         if GradM(EdgeIdx,SortedNodesIdx(ProgressIdx)) ~= 0 && ...
-                GradM(EdgeIdx,SortedNodesIdx(ProgressIdx))*CurlM(STPTar,EdgeIdx)==-1
+                GradM(EdgeIdx,SortedNodesIdx(ProgressIdx))*CurlM(FaceTar,EdgeIdx)==-1
             GuideEdgeIdx = EdgeIdx;
             break;
         end
@@ -298,57 +284,132 @@ end
 end
 
 %%
-function [kappa, FaceArea_Dual] = ComputeKappa_for_SingleNonBoundarySpS(kappa,SpSTgt,cdt,sG,sC,sD,DeltaSTNPos,NodePos,SpElemProperties)
-PrimEdgeTgtLeng         = SpEdgeLength(SpSTgt,sG,NodePos.Prim);
-DualFaceTgtArea         = SpFaceArea(SpSTgt,sD.',sC.',NodePos.Dual);
-FaceArea_Dual   = DualFaceTgtArea;
+function [kappa_partial, FaceArea_Dual] = ComputeKappa_for_SingleSpS(SpS_tgt,cdt,sG,sC,sD,DeltaSTNPos,NodePos,SpElemProperties)
 
-SpEndPoints         = find(sG(SpSTgt,:));
-UpdNum_SpSTgt       = SpElemProperties.SpS.UpdNum(SpSTgt);
-UpdNumEP            = SpElemProperties.SpN.UpdNum(SpEndPoints);
+TerminalPrimSpNs    = find(sG(SpS_tgt,:));
+UpdNum_SpSTgt       = SpElemProperties.SpS.UpdNum(SpS_tgt);
+UpdNum_TermSpNs     = SpElemProperties.SpN.UpdNum(TerminalPrimSpNs).';
+UpdNumRatio = UpdNum_TermSpNs/UpdNum_SpSTgt;
+TermSTNIdx_SpLikeSTS_Offset  = SpElemProperties.SpN.FirstSTNIdx(TerminalPrimSpNs)-UpdNumRatio;
 
-STNIdx_forEPs_Past  = SpElemProperties.SpN.FirstSTNIdx(SpEndPoints)-UpdNumEP/UpdNum_SpSTgt;
-STPTgt              = SpElemProperties.SpS.FirstSTPIdx(SpSTgt);
-for TimeSecTgt=1:UpdNum_SpSTgt
-    STPTgt = STPTgt + 1;
-    STNIdx_forEPs_Past  = STNIdx_forEPs_Past + UpdNumEP/UpdNum_SpSTgt;
+kappa_partial = zeros(1+UpdNum_SpSTgt,1);
+
+for TimeSec = 1:UpdNum_SpSTgt
+    STPTgt_LocalIdx = 1 + TimeSec;
+    TermSTNIdx_SpLikeSTS_Past  = TermSTNIdx_SpLikeSTS_Offset + UpdNumRatio*TimeSec;
+
+    SpLikePrimSTSVec_Past = [NodePos.Prim(logical(sG(SpS_tgt,:))).Vec]*sG(SpS_tgt,logical(sG(SpS_tgt,:))).';
+    SpLikePrimSTSVec_Past = SpLikePrimSTSVec_Past + DeltaSTNPos(:,TermSTNIdx_SpLikeSTS_Past            )*sG(SpS_tgt,logical(sG(SpS_tgt,:))).';
+    SpLikePrimSTSVec_Futr = [NodePos.Prim(logical(sG(SpS_tgt,:))).Vec]*sG(SpS_tgt,logical(sG(SpS_tgt,:))).';
+    SpLikePrimSTSVec_Futr = SpLikePrimSTSVec_Futr + DeltaSTNPos(:,TermSTNIdx_SpLikeSTS_Past+UpdNumRatio)*sG(SpS_tgt,logical(sG(SpS_tgt,:))).'; 
+
+    LocalBasis1 = 0.5*(SpLikePrimSTSVec_Past+SpLikePrimSTSVec_Futr);
+    LocalBasis1 = norm(LocalBasis1)^(-1)*LocalBasis1;
     
+    %     BulgeArea_EP1Side = ...
+    %         CalcBulgeArea(STNIdx_forEPs_Past(1),SpEndPoints(1),SpS_tgt,DeltaSTNPos,NodePos.Prim,sG,SpElemProperties,cdt);
+    %     BulgeArea_EP2Side = ...
+    %         CalcBulgeArea(STNIdx_forEPs_Past(2),SpEndPoints(2),SpS_tgt,DeltaSTNPos,NodePos.Prim,sG,SpElemProperties,cdt);
     BulgeArea_EP1Side = ...
-        CalcBulgeArea(STNIdx_forEPs_Past(1),SpEndPoints(1),SpSTgt,DeltaSTNPos,NodePos.Prim,sG,SpElemProperties,cdt);
+        CalcBulgeArea(TermSTNIdx_SpLikeSTS_Past(1),TerminalPrimSpNs(1),SpS_tgt,DeltaSTNPos,LocalBasis1,sG,SpElemProperties,cdt);
     BulgeArea_EP2Side = ...
-        CalcBulgeArea(STNIdx_forEPs_Past(2),SpEndPoints(2),SpSTgt,DeltaSTNPos,NodePos.Prim,sG,SpElemProperties,cdt);
-   
+        CalcBulgeArea(TermSTNIdx_SpLikeSTS_Past(2),TerminalPrimSpNs(2),SpS_tgt,DeltaSTNPos,LocalBasis1,sG,SpElemProperties,cdt);
+
     Area_PrimSTP  = ...
-        PrimEdgeTgtLeng *cdt/UpdNum_SpSTgt + (BulgeArea_EP1Side+BulgeArea_EP2Side);
-    Area_DualSTP  = DualFaceTgtArea;
+        0.5*(dot(SpLikePrimSTSVec_Past,LocalBasis1)+dot(SpLikePrimSTSVec_Futr,LocalBasis1)) *cdt/UpdNum_SpSTgt + (BulgeArea_EP1Side+BulgeArea_EP2Side);
+    %     PrimEdgeTgtLeng = SpEdgeLength(SpS_tgt,sG,NodePos.Prim);
+    %     Area_PrimSTP  = ...
+    %         PrimEdgeTgtLeng *cdt/UpdNum_SpSTgt + (BulgeArea_EP1Side+BulgeArea_EP2Side);
     
-    kappa(STPTgt) = -1*Area_DualSTP/Area_PrimSTP;  
-    if kappa(STPTgt)>0
-        disp('kappa(STPTgt)>0')
+    % compute dualface-area as vector and project on perp-plane of the average prim edge direction
+    NodeList_DefDualSpP = find(logical(sC(:,SpS_tgt).')*logical(sD.'));
+    NodeList_DefDualSpP = SortNodesAlongFaceOrientation(NodeList_DefDualSpP,SpS_tgt,sD.',sC.');
+    NodePos_DefDualSpP_SpPart = zeros(3,size(NodeList_DefDualSpP,2));
+    ColIdx = 0;
+    for SpNIdx = NodeList_DefDualSpP
+        ColIdx = ColIdx +1;
+        NodePos_DefDualSpP_SpPart(:,ColIdx) = NodePos.Dual(SpNIdx).Vec;
+        % project dual face to plane perp to LocalBasis1
+        NodePos_DefDualSpP_SpPart(:,ColIdx) = NodePos_DefDualSpP_SpPart(:,ColIdx)-dot(NodePos_DefDualSpP_SpPart(:,ColIdx),LocalBasis1)*LocalBasis1;
+    end
+    FaceArea_Dual  = norm(VectorArea3D(NodePos_DefDualSpP_SpPart));
+    Area_DualSTP  = FaceArea_Dual;
+    
+    kappa_partial(STPTgt_LocalIdx) = -1*Area_DualSTP/Area_PrimSTP;  
+    if kappa_partial(STPTgt_LocalIdx)>0
+        disp('kappa>0 for Edgelike-STP')
     end
 end
-kappa(STPTgt-UpdNum_SpSTgt) = kappa(STPTgt);
+kappa_partial(1) = kappa_partial(1+UpdNum_SpSTgt);
 end
 
 %%
-function BulgeArea = ...
-    CalcBulgeArea(STNTgt_Oldest,SpNTgt,SpSTgt,DeltaSTNPos,NodePosPrim,sG,SpElemProperties,cdt)
-Basis1 = ...
-    [NodePosPrim(logical(sG(SpSTgt,:))).Vec]*sG(SpSTgt,logical(sG(SpSTgt,:))).';
-Basis1 = Basis1/norm(Basis1);
+function BulgeArea = CalcBulgeArea(STNTgt_Oldest,SpN_tgt,SpS_tgt,DeltaSTNPos,LocalBasis1,sG,SpElemProperties,cdt)
+
+% LocalBasis1 = ...
+%     [NodePosPrim(logical(sG(SpSTgt,:))).Vec]*sG(SpSTgt,logical(sG(SpSTgt,:))).';
+% LocalBasis1 = LocalBasis1/norm(LocalBasis1);
 
 BulgeArea = 0;
-for LocalTimeSec = 1:SpElemProperties.SpN.UpdNum(SpNTgt)/SpElemProperties.SpS.UpdNum(SpSTgt)
+for LocalTimeSec = 1:SpElemProperties.SpN.UpdNum(SpN_tgt)/SpElemProperties.SpS.UpdNum(SpS_tgt)
     EdgeLengPast = ...
-        sG(SpSTgt,SpNTgt) * dot(DeltaSTNPos(:,STNTgt_Oldest+LocalTimeSec-1), Basis1);
+        sG(SpS_tgt,SpN_tgt) * dot(DeltaSTNPos(:,STNTgt_Oldest+LocalTimeSec-1), LocalBasis1);
     EdgeLengFutr = ...
-        sG(SpSTgt,SpNTgt) * dot(DeltaSTNPos(:,STNTgt_Oldest+LocalTimeSec  ), Basis1);
+        sG(SpS_tgt,SpN_tgt) * dot(DeltaSTNPos(:,STNTgt_Oldest+LocalTimeSec  ), LocalBasis1);
     BulgeArea = BulgeArea ...
-        + (cdt/SpElemProperties.SpN.UpdNum(SpNTgt)) * (EdgeLengPast + EdgeLengFutr)/2;
+        + (cdt/SpElemProperties.SpN.UpdNum(SpN_tgt)) * (EdgeLengPast + EdgeLengFutr)/2;
 end
 end
 
 %%
+
+% function [kappa_partial, FaceArea_Dual] = ComputeKappa_for_SingleBoundarySpS_OnCorners(SpS_tgt,cdt,sG,sC,sD,DeltaSTNPos,NodePos,SpElemProperties)
+% 
+% TerminalPrimSpNs    = find(sG(SpS_tgt,:));
+% UpdNum_SpSTgt       = SpElemProperties.SpS.UpdNum(SpS_tgt);
+% UpdNum_TermSpNs     = SpElemProperties.SpN.UpdNum(TerminalPrimSpNs).';
+% UpdNumRatio = UpdNum_TermSpNs/UpdNum_SpSTgt;
+% TermSTNIdx_SpLikeSTS_Offset  = SpElemProperties.SpN.FirstSTNIdx(TerminalPrimSpNs)-UpdNumRatio;
+% 
+% kappa_partial = zeros(1+UpdNum_SpSTgt,1);
+% 
+% for TimeSec = 1:UpdNum_SpSTgt
+%     STPTgt_LocalIdx = 1 + TimeSec;
+%     TermSTNIdx_SpLikeSTS_Past  = TermSTNIdx_SpLikeSTS_Offset + UpdNumRatio*TimeSec;
+%     % compute sp-part of the average direction of the two SpLike prim ST-edge
+%     SpLikePrimSTSVec_Past = [NodePos.Prim(logical(sG(SpS_tgt,:))).Vec]*sG(SpS_tgt,logical(sG(SpS_tgt,:))).';
+%     SpLikePrimSTSVec_Past = SpLikePrimSTSVec_Past + DeltaSTNPos(:,TermSTNIdx_SpLikeSTS_Past            )*sG(SpS_tgt,logical(sG(SpS_tgt,:))).';
+%     SpLikePrimSTSVec_Futr = [NodePos.Prim(logical(sG(SpS_tgt,:))).Vec]*sG(SpS_tgt,logical(sG(SpS_tgt,:))).';
+%     SpLikePrimSTSVec_Futr = SpLikePrimSTSVec_Futr + DeltaSTNPos(:,TermSTNIdx_SpLikeSTS_Past+UpdNumRatio)*sG(SpS_tgt,logical(sG(SpS_tgt,:))).';
+%     
+%     LocalBasis1 = 0.5*(SpLikePrimSTSVec_Past+SpLikePrimSTSVec_Futr);
+%     LocalBasis1 = norm(LocalBasis1)^(-1)*LocalBasis1;
+%     
+%     % project sp-part of the prim ST-edges on the average direction
+%     % vector
+%     Area_PrimSTP  = ...
+%         0.5*(dot(SpLikePrimSTSVec_Past,LocalBasis1)+dot(SpLikePrimSTSVec_Futr,LocalBasis1))*cdt/UpdNum_SpSTgt;
+%     NodeList_DefDualSpP = find(logical(sC(:,SpS_tgt).')*logical(sD.'));
+%     NodeList_DefDualSpP = SortNodesAlongFaceOrientation(NodeList_DefDualSpP,SpS_tgt,sD.',sC.');
+%     NodePos_DefDualSpP_SpPart = zeros(3,size(NodeList_DefDualSpP,2));
+%     ColIdx = 0;
+%     for SpNIdx = NodeList_DefDualSpP
+%         ColIdx = ColIdx +1;
+%         NodePos_DefDualSpP_SpPart(:,ColIdx) = NodePos.Dual(SpNIdx).Vec;
+%         % project sp-part of the dual ST-face on the perp-plane of the
+%         % average direction vector of the prim SpS
+%         NodePos_DefDualSpP_SpPart(:,ColIdx) = NodePos_DefDualSpP_SpPart(:,ColIdx)-dot(NodePos_DefDualSpP_SpPart(:,ColIdx),LocalBasis1)*LocalBasis1;
+%     end
+%     FaceArea_Dual  = norm(VectorArea3D(NodePos_DefDualSpP_SpPart));
+%     Area_DualSTP  = FaceArea_Dual;
+%     
+%     kappa_partial(STPTgt_LocalIdx) = -1*Area_DualSTP/Area_PrimSTP;
+%     if kappa_partial(STPTgt_LocalIdx)>0
+%         disp('kappa>0 for Edge-associated-STP')
+%     end
+% end
+% kappa_partial(1) = kappa_partial(1+UpdNum_SpSTgt);
+% end
 
 %%
 function [kappa,FaceAreaPrim] = ComputeKappa_for_SpFI_SpPs(kappa,FaceAreaPrim,cdt,sG,sC,sD,NodePos,SpElemProperties)

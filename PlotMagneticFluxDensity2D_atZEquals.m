@@ -1,8 +1,9 @@
-function PlotMagneticFluxDensity_atZEquals(ZConst,DoFs_FacesThenEdges,FaceArea,PrimFacePos,SpElemProperties,MeshMeasurements)
+function PlotMagneticFluxDensity2D_atZEquals(ZConst,FieldDoFs,FaceArea,PrimFacePos,MeshMeasurements)
 ZConst = round(ZConst);
-XSize = MeshMeasurements.XCoord/MeshMeasurements.dx;
-YSize = MeshMeasurements.YCoord/MeshMeasurements.dy;
+XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
+YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
 %ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dz;
+
 B_SquareoidMesh = zeros(XSize,YSize);
 Area_Squareoid  = zeros(XSize,YSize);
 ZPos_of_SpPs = [PrimFacePos(:).Vec];
@@ -11,8 +12,8 @@ ZPos_of_SpPs = ZPos_of_SpPs(3,:);
 for SpPIdx = find(ZPos_of_SpPs==ZConst)
     i = ceil(PrimFacePos(SpPIdx).Vec(1));
     j = ceil(PrimFacePos(SpPIdx).Vec(2));
-    B_SquareoidMesh(i,j) = B_SquareoidMesh(i,j) + DoFs_FacesThenEdges(SpPIdx);
-    Area_Squareoid(i,j)  =  Area_Squareoid(i,j) +       FaceArea.Prim(SpPIdx);
+    B_SquareoidMesh(i,j) = B_SquareoidMesh(i,j) + FieldDoFs(SpPIdx);
+    Area_Squareoid(i,j)  =  Area_Squareoid(i,j) + FaceArea.Prim(SpPIdx);
 end
 
 B_SquareoidMesh=B_SquareoidMesh./Area_Squareoid;

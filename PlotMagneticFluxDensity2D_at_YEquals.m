@@ -1,12 +1,12 @@
-function PlotMagneticFluxDensity2D_at_YEquals(DoFs_FacesThenEdges,YConst,FaceArea,Num_of_Elem,PrimFacePos,MeshMeasurements)
+function PlotMagneticFluxDensity2D_at_YEquals(FieldDoFs,YConst,FaceArea,PrimFacePos,MeshMeasurements)
 global SpDIM EPSILON
 
-dx = MeshMeasurements.dx;
-dy = MeshMeasurements.dy;
-dz = MeshMeasurements.dz;
-XSize = MeshMeasurements.XCoord/MeshMeasurements.dx;
-YSize = MeshMeasurements.YCoord/MeshMeasurements.dy;
-ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dz;
+dx = MeshMeasurements.dxCoarse;
+dy = MeshMeasurements.dyCoarse;
+dz = MeshMeasurements.dzCoarse;
+XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
+YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
+ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 
 % Disp_dx = dx;
 % Disp_dy = dy;
@@ -14,7 +14,7 @@ ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dz;
 
 B_SquareoidMesh = zeros(XSize+1,YSize+1,ZSize+1,SpDIM);
 Area_Squareoid  = ones(XSize+1,YSize+1,ZSize+1,SpDIM);
-for SpPIdx = 1:Num_of_Elem.SpP
+for SpPIdx = 1:size(FaceArea.Prim,1)
     xIdx = PrimFacePos(SpPIdx).Vec(1)/dx;
     yIdx = PrimFacePos(SpPIdx).Vec(2)/dy;
     zIdx = PrimFacePos(SpPIdx).Vec(3)/dz;
@@ -38,7 +38,7 @@ for SpPIdx = 1:Num_of_Elem.SpP
         continue;
     end
     B_SquareoidMesh(xIdx,yIdx,zIdx,dimIdx) ...
-        = B_SquareoidMesh(xIdx,yIdx,zIdx,dimIdx) + DoFs_FacesThenEdges(SpPIdx);
+        = B_SquareoidMesh(xIdx,yIdx,zIdx,dimIdx) + FieldDoFs(SpPIdx);
     Area_Squareoid(xIdx,yIdx,zIdx,dimIdx)  ...
         =  Area_Squareoid(xIdx,yIdx,zIdx,dimIdx) +       FaceArea.Prim(SpPIdx);
 end

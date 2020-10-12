@@ -213,11 +213,13 @@ end
 %% position of Primal Faces
 PrimFacePos(Num_of_Elem.SpP).Vec = [0;0;0];
 for SpPIdx = 1:Num_of_Elem.SpP
-    Nodes = find(( logical(sG).'*logical(sC(SpPIdx,:)).' ).');
-    PosVec_SpP = [0;0;0];
-    for SpNIdx = Nodes
-        PosVec_SpP = PosVec_SpP+NodePos.Prim(SpNIdx).Vec;
-    end
-    PrimFacePos(SpPIdx).Vec = PosVec_SpP/size(Nodes,2);
+    %     Nodes = find(( logical(sG).'*logical(sC(SpPIdx,:)).' ).');
+    %     PosVec_SpP = [0;0;0];
+    %     for SpNIdx = Nodes
+    %         PosVec_SpP = PosVec_SpP + NodePos.Prim(SpNIdx).Vec;
+    %     end
+    %     PrimFacePos(SpPIdx).Vec = PosVec_SpP/size(Nodes,2);
+    Nodes_LogIdx = logical(( logical(sG).'*logical(sC(SpPIdx,:)).' ).');
+    PrimFacePos(SpPIdx).Vec = mean([NodePos.Prim(Nodes_LogIdx).Vec],2);
 end
 end

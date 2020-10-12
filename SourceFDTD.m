@@ -7,9 +7,9 @@ Lightspeed = 1;
 wavelength = Lightspeed/(1/SourcePeriod);
 disp(['Wavelength/meshsize = ', num2str(wavelength/max([MeshMeasurements.dx MeshMeasurements.dy MeshMeasurements.dz]) ) ])
 
-XSize = MeshMeasurements.XCoord/MeshMeasurements.dx;
-YSize = MeshMeasurements.YCoord/MeshMeasurements.dy;
-ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dz;
+XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
+YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
+ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 
 XEdgePerXRow        = XSize;
 XEdgePerXYPlane     = XSize*(YSize+1);

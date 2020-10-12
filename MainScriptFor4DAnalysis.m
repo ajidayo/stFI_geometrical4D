@@ -3,7 +3,7 @@
 % DONE 3 RefMesh_Subgrid, Boundary Conditions 
 % DONE 4 RefMesh_Subgrid, Given area and lengths
 % TODO 5 Kappa, NonOrthogonal 
-% TODO 6 Kappa, Corner % もし角なら二つとなりの境界の節点から取ってくる。　ふちなら隣から取ってくる
+% TODO 6 Kappa, Corner
 % TODO 7 Source
 % TODO 8 Plotfunctions
 
@@ -67,17 +67,17 @@ disp('point5.1')
 %%
 Num_of_PMLDualDoF_Init = size(find(SpElemProperties.SpP.PML==true),2)+size(find(SpElemProperties.SpS.PML==true),2);
 
-FieldDoFs_Face_Edge_PMLFace_PMLEdge  = zeros(Num_of_Elem.SpP+Num_of_Elem.SpS+Num_of_PMLDualDoF_Init,1);
+FieldDoFs  = zeros(Num_of_Elem.SpP+Num_of_Elem.SpS+Num_of_PMLDualDoF_Init,1);
 % FieldDoFs_Face_Edge_PMLFace_PMLEdge  = rand(Num_of_Elem.SpP+Num_of_Elem.SpS+Num_of_PMLDualDoF_Init,1);
 
 Num_of_Steps                = 10000;
 disp(['Number of Steps = ', num2str(Num_of_Steps)])
 Time                        = 0;
 disp('point6')
-FieldDoFs_Face_Edge_PMLFace_PMLEdge = TimeMarch(Num_of_Steps,Time,cdt,TMM_Fields,TMM_Sources,FieldDoFs_Face_Edge_PMLFace_PMLEdge,Source);
+FieldDoFs = TimeMarch(Num_of_Steps,Time,cdt,TMM_Fields,TMM_Sources,FieldDoFs,Source);
 disp('point7')
 ZConst                      = round(0.5*MeshMeasurements.ZCoord/MeshMeasurements.dz);
-PlotMagneticFluxDensity_atZEquals(ZConst,FieldDoFs_Face_Edge_PMLFace_PMLEdge,FaceArea,PrimFacePos,SpElemProperties,MeshMeasurements)
+PlotMagneticFluxDensity_atZEquals(ZConst,FieldDoFs,FaceArea,PrimFacePos,MeshMeasurements)
 YConst                      = round(0.5*MeshMeasurements.YCoord/MeshMeasurements.dy);
-PlotMagneticFluxDensity2D_at_YEquals(FieldDoFs_Face_Edge_PMLFace_PMLEdge,YConst,FaceArea,Num_of_Elem,PrimFacePos,MeshMeasurements)
-PlotMagneticFluxDensity3D(FieldDoFs_Face_Edge_PMLFace_PMLEdge,FaceArea,Num_of_Elem,PrimFacePos,MeshMeasurements)
+PlotMagneticFluxDensity2D_at_YEquals(FieldDoFs,YConst,FaceArea,PrimFacePos,MeshMeasurements)
+PlotMagneticFluxDensity3D(FieldDoFs,FaceArea,PrimFacePos,MeshMeasurements)

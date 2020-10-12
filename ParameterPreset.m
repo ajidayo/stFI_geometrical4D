@@ -9,6 +9,9 @@ switch SelectPreset
         MeshMeasurements.dx = 1;
         MeshMeasurements.dy = 1;
         MeshMeasurements.dz = 1;
+        MeshMeasurements.dxCoarse = 1;
+        MeshMeasurements.dyCoarse = 1;
+        MeshMeasurements.dzCoarse = 1;
         disp(['Preset: FDTD, RefMeshSize:', ...
             num2str(MeshMeasurements.XCoord), ...
             ' x ', num2str(MeshMeasurements.YCoord), ...
