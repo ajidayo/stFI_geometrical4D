@@ -92,7 +92,6 @@ Num_of_Elem.STV = CurrentSTVIdx;
 
 STElemProperties.STP.TaskIdx = zeros(1,Num_of_Elem.STP);
 %% tasktype
-% Usage Guide: SpElemPropreties.SpP.Belong_to_ST_FI(SpPIdx)
 % First check if SpPs are on dt-Interfaces. Interface SpPs belongs to ST_FI-region.
 % SpPs adjacent to interface-SpPs belongs to ST_FI-region.
 SpElemProperties.SpP.Belong_to_ST_FI = logical(sparse(1,Num_of_Elem.SpP));
@@ -146,7 +145,7 @@ SpElemProperties.SpN.UpdNumCorner = logical(sparse(1,Num_of_Elem.SpN));
 for SpSIdx = find(SpElemProperties.SpS.UpdNumCorner)
     SpElemProperties.SpN.UpdNumCorner(logical(sG(SpSIdx,:))) = true;
 end
-%% PML, Dummy
+%% PML
 SpElemProperties.SpS.PML        = false(1,Num_of_Elem.SpS);
 SpElemProperties.SpP.PML        = false(1,Num_of_Elem.SpP);
 for SpVIdx = 1:Num_of_Elem.SpV

@@ -1,4 +1,4 @@
-function PlotMagneticFluxDensity2D_at_YEquals(FieldDoFs,YConst,FaceArea,PrimFacePos,MeshMeasurements)
+function PlotMagneticFluxDensity2D_atYEquals(FieldDoFs,YConst,FaceArea,PrimFacePos,MeshMeasurements)
 global SpDIM EPSILON
 
 dx = MeshMeasurements.dxCoarse;

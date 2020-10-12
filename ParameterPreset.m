@@ -4,11 +4,8 @@ switch SelectPreset
         RefMeshPresetType = 'FDTD';
         LocalUpdateNum = 2;
         MeshMeasurements.XCoord = 30;
-        MeshMeasurements.YCoord = 18;
-        MeshMeasurements.ZCoord = 18;
-        MeshMeasurements.dx = 1;
-        MeshMeasurements.dy = 1;
-        MeshMeasurements.dz = 1;
+        MeshMeasurements.YCoord = 10;
+        MeshMeasurements.ZCoord = 10;
         MeshMeasurements.dxCoarse = 1;
         MeshMeasurements.dyCoarse = 1;
         MeshMeasurements.dzCoarse = 1;
@@ -17,21 +14,21 @@ switch SelectPreset
             ' x ', num2str(MeshMeasurements.YCoord), ...
             ' x ', num2str(MeshMeasurements.ZCoord)])
         disp(['Discretization Width:dx, dy, dz = ', ...
-            num2str(MeshMeasurements.dx), ...
-            ', ', num2str(MeshMeasurements.dy), ...
-            ', ', num2str(MeshMeasurements.dz)])
+            num2str(MeshMeasurements.dxCoarse), ...
+            ', ', num2str(MeshMeasurements.dyCoarse), ...
+            ', ', num2str(MeshMeasurements.dzCoarse)])
         disp(['LocalUpdateNum = ', num2str(LocalUpdateNum)])
     case 2
         RefMeshPresetType = 'FDTDWithSubgrid';
-        SubgridFineness = 2;
+        SubgridFineness = 1;
         
         MeshMeasurements.XCoord = 30;
-        MeshMeasurements.YCoord = 10;
-        MeshMeasurements.ZCoord = 10;
+        MeshMeasurements.YCoord = 18;
+        MeshMeasurements.ZCoord = 18;
         MeshMeasurements.XFineFromCoord = 17;
         MeshMeasurements.YFineFromCoord = 2;
         MeshMeasurements.ZFineFromCoord = 2;
-        MeshMeasurements.XFineToCoord   = 23;
+        MeshMeasurements.XFineToCoord   = 22;
         MeshMeasurements.YFineToCoord   = 8;
         MeshMeasurements.ZFineToCoord   = 8;
         MeshMeasurements.dxCoarse = 1;
@@ -63,7 +60,11 @@ switch SelectPreset
             num2str(MeshMeasurements.dxCoarse), ...
             ', ', num2str(MeshMeasurements.dyCoarse), ...
             ', ', num2str(MeshMeasurements.dzCoarse)])
-    otherwise 
+        disp(['Discretization Width at Local Grids:dx, dy, dz =',...
+            num2str(MeshMeasurements.dxCoarse/SubgridFineness), ...
+            ', ', num2str(MeshMeasurements.dyCoarse/SubgridFineness), ...
+            ', ', num2str(MeshMeasurements.dzCoarse/SubgridFineness)])
+            otherwise 
          warning('Preset undefined.')
 end
 end

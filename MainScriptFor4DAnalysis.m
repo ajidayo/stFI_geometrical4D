@@ -2,19 +2,19 @@
 % DONE 2 RefMesh_Subgrid, Corner
 % DONE 3 RefMesh_Subgrid, Boundary Conditions 
 % DONE 4 RefMesh_Subgrid, Given area and lengths
-% TODO 5 Kappa, NonOrthogonal 
-% TODO 6 Kappa, Corner
-% TODO 7 Source
-% TODO 8 Plotfunctions
+% DONE 5 Kappa, NonOrthogonal 
+% DONE 6 Kappa, Corner
+% DONE 7 Source
+% DONE 8 Plotfunctions
 
 clear;
 global SpDIM EPSILON
 SpDIM   = 3; % Fixed at 3, immutable parameter.
 EPSILON = 10^(-7);
 %% Inputs
-SelectPreset = 1; % Preset = {1,2} is available. See ParameterPreset for details for each settings.
+SelectPreset = 2; % Preset = {1,2} is available. See ParameterPreset for details for each settings.
 [RefMeshPresetType,MeshMeasurements,LocalUpdateNum] = ParameterPreset(SelectPreset);
-[sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties] = GenerateReferenceMesh_3D_Sp(RefMeshPresetType,MeshMeasurements,LocalUpdateNum);
+[sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties,ElemPer] = GenerateReferenceMesh_3D_Sp(RefMeshPresetType,MeshMeasurements,LocalUpdateNum);
 RefImpedance_SpV = ones(Num_of_Elem.SpV,1);
 
 %%
@@ -46,7 +46,9 @@ cdt = 0.1;
 disp(['cdt = ', num2str(cdt)])
 
 [kappa,FaceArea] = ComputeKappa_4D_ST(cdt,sG,sC,sD,D0,D1,D2,D3,NodePos,SpElemProperties,STElemProperties,Num_of_Elem);
+
 disp('point4')
+
 Z = ComputeImpedance_for_EachSTPs(RefImpedance_SpV,sC,sD,SpElemProperties,Num_of_Elem);
 Kappa_over_Z = kappa./Z;
 
@@ -56,7 +58,7 @@ disp('point4.1')
 
 %% 
 disp('point5')
-Source                      = SourceFDTD(MeshMeasurements,SpElemProperties,sC);
+Source = SourceFDTD(MeshMeasurements,SpElemProperties,ElemPer,sC);
 Num_of_Elem.STSource        = 0;
 for SpSourceIdx = 1:size(Source,2) 
     Num_of_Elem.STSource=Num_of_Elem.STSource+Source(SpSourceIdx).UpdNum;
@@ -65,19 +67,20 @@ TMM                         = ConstructTimeMarchingMatrix_4D_ST(D1,D2,sC,Kappa_o
 [TMM_Fields, TMM_Sources]   = SplitTMM_into_FieldsAndSources(TMM,Num_of_Elem,SpElemProperties);
 disp('point5.1')
 %%
+
 Num_of_PMLDualDoF_Init = size(find(SpElemProperties.SpP.PML==true),2)+size(find(SpElemProperties.SpS.PML==true),2);
 
 FieldDoFs  = zeros(Num_of_Elem.SpP+Num_of_Elem.SpS+Num_of_PMLDualDoF_Init,1);
-% FieldDoFs_Face_Edge_PMLFace_PMLEdge  = rand(Num_of_Elem.SpP+Num_of_Elem.SpS+Num_of_PMLDualDoF_Init,1);
+% FieldDoFs  = rand(Num_of_Elem.SpP+Num_of_Elem.SpS+Num_of_PMLDualDoF_Init,1);
 
-Num_of_Steps                = 10000;
+Num_of_Steps = 100;
 disp(['Number of Steps = ', num2str(Num_of_Steps)])
-Time                        = 0;
+Time = 0;
 disp('point6')
 FieldDoFs = TimeMarch(Num_of_Steps,Time,cdt,TMM_Fields,TMM_Sources,FieldDoFs,Source);
 disp('point7')
-ZConst                      = round(0.5*MeshMeasurements.ZCoord/MeshMeasurements.dz);
-PlotMagneticFluxDensity_atZEquals(ZConst,FieldDoFs,FaceArea,PrimFacePos,MeshMeasurements)
-YConst                      = round(0.5*MeshMeasurements.YCoord/MeshMeasurements.dy);
-PlotMagneticFluxDensity2D_at_YEquals(FieldDoFs,YConst,FaceArea,PrimFacePos,MeshMeasurements)
+ZConst = round(0.5*MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse);
+PlotMagneticFluxDensity_ZComponent_atZEquals(ZConst,FieldDoFs,FaceArea,PrimFacePos,MeshMeasurements)
+YConst = round(0.5*MeshMeasurements.YCoord/MeshMeasurements.dyCoarse);
+PlotMagneticFluxDensity2D_atYEquals(FieldDoFs,YConst,FaceArea,PrimFacePos,MeshMeasurements)
 PlotMagneticFluxDensity3D(FieldDoFs,FaceArea,PrimFacePos,MeshMeasurements)

@@ -1,5 +1,5 @@
-function [sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties] ...
-    = FDTD_RefMesh(MeshMeasurements,LocalUpdateNum)
+function [sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties,ElemPer] ...
+    = RefMesh_FDTD(MeshMeasurements,LocalUpdateNum)
 % global EPSILON
 XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
 YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
@@ -46,12 +46,39 @@ SpElemProperties.SpP.PrimArea = ones(Num_of_Elem.SpP,1);
 SpElemProperties.SpP.DualLeng = ones(Num_of_Elem.SpP,1);
 SpElemProperties.SpS.PrimLeng = ones(Num_of_Elem.SpS,1);
 SpElemProperties.SpS.DualArea = ones(Num_of_Elem.SpS,1);
+
+ElemPer.XEdgePerCoarseGrid  = 1*ones(XSize,YSize+1,ZSize+1);
+ElemPer.XEdgePerYRow        = (YSize+1)*ones(ZSize+1,XSize);
+ElemPer.XEdgePerYZPlane     = (YSize+1)*(ZSize+1)*ones(XSize);
+ElemPer.XEdgeNum            = (YSize+1)*(ZSize+1)*XSize;
+ElemPer.YEdgePerCoarseGrid  = 1*ones(XSize+1,YSize,ZSize+1);
+ElemPer.YEdgePerZRow        = (ZSize+1)*ones(XSize+1,YSize);
+ElemPer.YEdgePerZXPlane     = (ZSize+1)*(XSize+1)*ones(YSize);
+ElemPer.YEdgeNum            = (ZSize+1)*(XSize+1)*YSize;
+ElemPer.XEdgePerCoarseGrid  = 1*ones(XSize+1,YSize+1,ZSize);
+ElemPer.ZEdgePerXRow        = (ZSize+1)*ones(XSize+1,ZSize);
+ElemPer.ZEdgePerXYPlane     = (ZSize+1)*(XSize+1)*ones(ZSize);
+ElemPer.ZEdgeNum            = (ZSize+1)*(XSize+1)*ZSize;
+
+ElemPer.YZFacePerCoarseGrid = 1*ones(XSize+1,YSize,ZSize);
+ElemPer.YZFacePerYRow       = (YSize)*ones(ZSize,XSize+1);
+ElemPer.YZFacePerYZPlane    = (YSize)*(ZSize)*ones(XSize+1);
+ElemPer.YZFaceNum           = YSize*ZSize*(XSize+1);
+ElemPer.ZXFacePerCoarseGrid = 1*ones(XSize,YSize+1,ZSize);
+ElemPer.ZXFacePerZRow       = (ZSize)*ones(XSize,YSize+1);
+ElemPer.ZXFacePerZXPlane    = (ZSize)*(XSize)*ones(YSize+1);
+ElemPer.ZXFaceNum           = ZSize*XSize*(YSize+1);
+ElemPer.XYFacePerCoarseGrid = 1*ones(XSize,YSize,ZSize+1);
+ElemPer.XYFacePerXRow       = (XSize)*ones(YSize,ZSize+1);
+ElemPer.XYFacePerXYPlane    = (XSize)*(YSize)*ones(ZSize+1);
+ElemPer.XYFaceNum           = XSize*YSize*(ZSize+1);
+
 end
 
 function sG = FDTD_sG(MeshMeasurements,Num_of_Elem)
-XSize = MeshMeasurements.XCoord/MeshMeasurements.dx;
-YSize = MeshMeasurements.YCoord/MeshMeasurements.dy;
-ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dz;
+XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
+YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
+ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 
 XEdgePerXRow        = XSize;
 XEdgePerXYPlane     = XSize*(YSize+1);
@@ -105,9 +132,9 @@ end
 end
 
 function sC = FDTD_sC(MeshMeasurements,Num_of_Elem)
-XSize = MeshMeasurements.XCoord/MeshMeasurements.dx;
-YSize = MeshMeasurements.YCoord/MeshMeasurements.dy;
-ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dz;
+XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
+YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
+ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 
 YZFacePerXRow       = (XSize+1);
 YZFacePerXYPlane    = (XSize+1)*YSize;
@@ -184,9 +211,9 @@ for ZIdx = 1:ZSize+1
 end
 end
 function sD = FDTD_sD(MeshMeasurements,Num_of_Elem)
-XSize = MeshMeasurements.XCoord/MeshMeasurements.dx;
-YSize = MeshMeasurements.YCoord/MeshMeasurements.dy;
-ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dz;
+XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
+YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
+ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 VolPerXRow          = XSize;
 VolPerXYPlane       = XSize*YSize;
 %VolNum              = XSize*YSize*ZSize;
@@ -228,9 +255,9 @@ end
 end
 
 function NodePos = FDTD_NodePos(MeshMeasurements)
-XSize = MeshMeasurements.XCoord/MeshMeasurements.dx;
-YSize = MeshMeasurements.YCoord/MeshMeasurements.dy;
-ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dz;
+XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
+YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
+ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 
 NodePerXRow        = XSize+1;
 NodePerXYPlane     = (XSize+1)*(YSize+1);
@@ -245,9 +272,9 @@ for ZIdx = 1:ZSize+1
     for YIdx = 1:YSize+1
         for XIdx = 1:XSize+1
             SpNIdx = XIdx   + (YIdx-1)*NodePerXRow + (ZIdx-1)*NodePerXYPlane;
-            XPos = MeshMeasurements.dx*(XIdx-1);
-            YPos = MeshMeasurements.dy*(YIdx-1);
-            ZPos = MeshMeasurements.dz*(ZIdx-1);
+            XPos = MeshMeasurements.dxCoarse*(XIdx-1);
+            YPos = MeshMeasurements.dyCoarse*(YIdx-1);
+            ZPos = MeshMeasurements.dzCoarse*(ZIdx-1);
             NodePos.Prim(SpNIdx).Vec = [XPos;YPos;ZPos]; 
         end
     end
@@ -256,9 +283,9 @@ for ZIdx = 1:ZSize
     for YIdx = 1:YSize
         for XIdx = 1:XSize
             SpNIdx = XIdx   + (YIdx-1)*VolPerXRow + (ZIdx-1)*VolPerXYPlane;
-            XPos = MeshMeasurements.dx*(XIdx-0.5);
-            YPos = MeshMeasurements.dy*(YIdx-0.5);
-            ZPos = MeshMeasurements.dz*(ZIdx-0.5);
+            XPos = MeshMeasurements.dxCoarse*(XIdx-0.5);
+            YPos = MeshMeasurements.dyCoarse*(YIdx-0.5);
+            ZPos = MeshMeasurements.dzCoarse*(ZIdx-0.5);
             NodePos.Dual(SpNIdx).Vec = [XPos;YPos;ZPos];
         end
     end
@@ -266,9 +293,9 @@ end
 end
 
 function SpElemProperties_SpS_PEC = FDTD_SpS_PEC(MeshMeasurements,Num_of_Elem)
-XSize = MeshMeasurements.XCoord/MeshMeasurements.dx;
-YSize = MeshMeasurements.YCoord/MeshMeasurements.dy;
-ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dz;
+XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
+YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
+ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 
 XEdgePerXRow        = XSize;
 XEdgePerXYPlane     = XSize*(YSize+1);
@@ -332,9 +359,9 @@ end
 end
 
 function SpElemProperties_SpP_ElecWall = FDTD_SpP_ElecWall(MeshMeasurements,Num_of_Elem)
-XSize = MeshMeasurements.XCoord/MeshMeasurements.dx;
-YSize = MeshMeasurements.YCoord/MeshMeasurements.dy;
-ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dz;
+XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
+YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
+ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 
 YZFacePerXRow       = (XSize+1);
 YZFacePerXYPlane    = (XSize+1)*YSize;

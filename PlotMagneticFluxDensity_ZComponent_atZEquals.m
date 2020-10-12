@@ -1,4 +1,4 @@
-function PlotMagneticFluxDensity2D_atZEquals(ZConst,FieldDoFs,FaceArea,PrimFacePos,MeshMeasurements)
+function PlotMagneticFluxDensity_ZComponent_atZEquals(ZConst,FieldDoFs,FaceArea,PrimFacePos,MeshMeasurements)
 ZConst = round(ZConst);
 XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
 YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
