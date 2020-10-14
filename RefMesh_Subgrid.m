@@ -4,6 +4,7 @@ XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
 YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
 ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 
+disp('RefMesh_Subgrid:Calculating Number of Elements')
 VolPerCoarseGrid = zeros(XSize,YSize,ZSize); 
 VolPerXRow      = zeros(YSize,ZSize);
 VolPerXYPlane   = zeros(ZSize,1);
@@ -220,19 +221,58 @@ for XIdx = 1:XSize
             XEdgePerYRow(ZIdx,XIdx) = XEdgePerYRow(ZIdx,XIdx) + XEdgePerCoarseGrid(XIdx,YIdx,ZIdx);      
         end
         for YIdx = YSize+1
+            if ZIdx == 1
+                AdjVolIsFiner_YZMinusDirec = false;
+            else
+                if MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx-1)>MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx)
+                    AdjVolIsFiner_YZMinusDirec = true;
+                else
+                    AdjVolIsFiner_YZMinusDirec = false;
+                end
+            end
             XEdgePerCoarseGrid(XIdx,YIdx,ZIdx) ...
-                = (MeshMeasurements.LocalGridFineness(XIdx,YSize,ZIdx)).^(2);
+                = (MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx)-1)...
+                *(MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx));
+            if AdjVolIsFiner_YZMinusDirec
+                XEdgePerCoarseGrid(XIdx,YIdx,ZIdx)=...
+                    XEdgePerCoarseGrid(XIdx,YIdx,ZIdx)...
+                    +MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx-1);
+            else
+                XEdgePerCoarseGrid(XIdx,YIdx,ZIdx)=...
+                    XEdgePerCoarseGrid(XIdx,YIdx,ZIdx)...
+                    +MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx);        
+            end
             XEdgePerYRow(ZIdx,XIdx) = XEdgePerYRow(ZIdx,XIdx) + XEdgePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         XEdgePerYZPlane(XIdx) = XEdgePerYZPlane(XIdx) + XEdgePerYRow(ZIdx,XIdx);
     end
     for ZIdx = ZSize+1
         for YIdx = 1:YSize
-            XEdgePerCoarseGrid(XIdx,YIdx,ZIdx) = (MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZSize)).^(2);
+            if YIdx ==1
+                AdjVolIsFiner_YZMinusDirec = false;
+            else
+                if MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx-1)>MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx)
+                    AdjVolIsFiner_YZMinusDirec = true;
+                else
+                    AdjVolIsFiner_YZMinusDirec = false;
+                end
+            end
+            XEdgePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                = (MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx-1)-1)...
+                *(MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx-1));
+            if AdjVolIsFiner_YZMinusDirec
+                XEdgePerCoarseGrid(XIdx,YIdx,ZIdx)=...
+                    XEdgePerCoarseGrid(XIdx,YIdx,ZIdx)...
+                    +MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx-1);
+            else
+                XEdgePerCoarseGrid(XIdx,YIdx,ZIdx)=...
+                    XEdgePerCoarseGrid(XIdx,YIdx,ZIdx)...
+                    +MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx-1);        
+            end
             XEdgePerYRow(ZIdx,XIdx) = XEdgePerYRow(ZIdx,XIdx) + XEdgePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         for YIdx = YSize+1
-            XEdgePerCoarseGrid(XIdx,YIdx,ZIdx) = (MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZSize));
+            XEdgePerCoarseGrid(XIdx,YIdx,ZIdx) = (MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx-1));
             XEdgePerYRow(ZIdx,XIdx) = XEdgePerYRow(ZIdx,XIdx) + XEdgePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         XEdgePerYZPlane(XIdx) = XEdgePerYZPlane(XIdx) + XEdgePerYRow(ZIdx,XIdx);
@@ -311,8 +351,27 @@ for YIdx = 1:YSize
                 + YEdgePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         for ZIdx = ZSize+1
+            if XIdx == 1
+                AdjVolIsFiner_ZXMinusDirec = false;
+            else
+                if MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx-1)>MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx)
+                    AdjVolIsFiner_ZXMinusDirec = true;
+                else
+                    AdjVolIsFiner_ZXMinusDirec = false;
+                end
+            end
             YEdgePerCoarseGrid(XIdx,YIdx,ZIdx) ...
-                = (MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZSize)).^(2);
+                = (MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx-1)-1)...
+                *(MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx-1));
+            if AdjVolIsFiner_ZXMinusDirec
+                YEdgePerCoarseGrid(XIdx,YIdx,ZIdx)=...
+                    YEdgePerCoarseGrid(XIdx,YIdx,ZIdx)...
+                    +MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx-1);
+            else
+                YEdgePerCoarseGrid(XIdx,YIdx,ZIdx)=...
+                    YEdgePerCoarseGrid(XIdx,YIdx,ZIdx)...
+                    +MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx-1);
+            end
             YEdgePerZRow(XIdx,YIdx) = YEdgePerZRow(XIdx,YIdx) ...
                 + YEdgePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
@@ -320,14 +379,33 @@ for YIdx = 1:YSize
     end
     for XIdx = XSize+1
         for ZIdx = 1:ZSize
+            if ZIdx == 1
+                AdjVolIsFiner_ZXMinusDirec = false;
+            else
+                if MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx-1)>MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx)
+                    AdjVolIsFiner_ZXMinusDirec = true;
+                else
+                    AdjVolIsFiner_ZXMinusDirec = false;
+                end
+            end
             YEdgePerCoarseGrid(XIdx,YIdx,ZIdx) ...
-                = (MeshMeasurements.LocalGridFineness(XSize,YIdx,ZIdx)).^(2);
+                = (MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx)-1)...
+                *(MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx));
+            if AdjVolIsFiner_ZXMinusDirec
+                YEdgePerCoarseGrid(XIdx,YIdx,ZIdx)=...
+                    YEdgePerCoarseGrid(XIdx,YIdx,ZIdx)...
+                    +MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx-1);
+            else
+                YEdgePerCoarseGrid(XIdx,YIdx,ZIdx)=...
+                    YEdgePerCoarseGrid(XIdx,YIdx,ZIdx)...
+                    +MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx);        
+            end
             YEdgePerZRow(XIdx,YIdx) = YEdgePerZRow(XIdx,YIdx) ...
                 + YEdgePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         for ZIdx = ZSize+1
             YEdgePerCoarseGrid(XIdx,YIdx,ZIdx) ...
-                = (MeshMeasurements.LocalGridFineness(XSize,YIdx,ZIdx));
+                = (MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx-1));
             YEdgePerZRow(XIdx,YIdx) = YEdgePerZRow(XIdx,YIdx) ...
                 + YEdgePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
@@ -406,20 +484,58 @@ for ZIdx = 1:ZSize
             ZEdgePerXRow(YIdx,ZIdx) = ZEdgePerXRow(YIdx,ZIdx) + ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         for XIdx = XSize+1
+            if YIdx ==1
+                AdjVolIsFiner_XYMinusDirec = false;
+            else
+            if MeshMeasurements.LocalGridFineness(XIdx-1,YIdx-1,ZIdx)>MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx)
+                AdjVolIsFiner_XYMinusDirec = true;
+            else
+                AdjVolIsFiner_XYMinusDirec = false;
+            end
+            end
             ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx) ...
-                = (MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZSize)).^(2);
+                = (MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx)-1)...
+                *(MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx));
+            if AdjVolIsFiner_XYMinusDirec
+                ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx)=...
+                    ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx)...
+                    +MeshMeasurements.LocalGridFineness(XIdx-1,YIdx-1,ZIdx);
+            else
+                ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx)=...
+                    ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx)...
+                    +MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx);
+            end
             ZEdgePerXRow(YIdx,ZIdx) = ZEdgePerXRow(YIdx,ZIdx) + ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         ZEdgePerXYPlane(ZIdx) = ZEdgePerXYPlane(ZIdx) + ZEdgePerXRow(YIdx,ZIdx);
     end
     for YIdx = YSize+1
         for XIdx = 1:XSize
+            if XIdx ==1
+                AdjVolIsFiner_XYMinusDirec = false;  
+            else
+                if MeshMeasurements.LocalGridFineness(XIdx-1,YIdx-1,ZIdx)>MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx)
+                    AdjVolIsFiner_XYMinusDirec = true;
+                else
+                    AdjVolIsFiner_XYMinusDirec = false;
+                end
+            end
             ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx) ...
-                = (MeshMeasurements.LocalGridFineness(XIdx,YSize,ZIdx)).^(2);
+                = (MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx)-1)...
+                *(MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx));
+            if AdjVolIsFiner_XYMinusDirec
+                ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx)=...
+                    ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx)...
+                    +MeshMeasurements.LocalGridFineness(XIdx-1,YIdx-1,ZIdx);
+            else
+                ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx)=...
+                    ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx)...
+                    +MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx);
+            end
             ZEdgePerXRow(YIdx,ZIdx) = ZEdgePerXRow(YIdx,ZIdx) + ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         for XIdx = XSize+1
-            ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx) = MeshMeasurements.LocalGridFineness(XSize,YSize,ZIdx);
+            ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx) = MeshMeasurements.LocalGridFineness(XIdx-1,YIdx-1,ZIdx);
             ZEdgePerXRow(YIdx,ZIdx) = ZEdgePerXRow(YIdx,ZIdx) + ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         ZEdgePerXYPlane(ZIdx) = ZEdgePerXYPlane(ZIdx) + ZEdgePerXRow(YIdx,ZIdx);
@@ -570,21 +686,77 @@ for ZIdx = 1:ZSize
             NodePerXRow(YIdx,ZIdx) = NodePerXRow(YIdx,ZIdx) + NodePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         for XIdx = XSize+1
+            if MeshMeasurements.LocalGridFineness(XIdx-1,max([YIdx-1 1]),ZIdx)>MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx)
+                AdjVolIsFiner_XYMinusDirec = true;
+            else
+                AdjVolIsFiner_XYMinusDirec = false;
+            end
+            if MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,max([ZIdx-1 1]))>MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx)
+                AdjVolIsFiner_ZXMinusDirec = true;
+            else
+                AdjVolIsFiner_ZXMinusDirec = false;
+            end
             NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
-                = (MeshMeasurements.LocalGridFineness(XSize,YIdx,ZIdx)).^(2);
+                = 1+(MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx)-1)^2;
+            if AdjVolIsFiner_XYMinusDirec
+                NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    =  NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    + (MeshMeasurements.LocalGridFineness(XIdx-1,YIdx-1,ZIdx)-1);
+            else
+                NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                     =  NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                     + (MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx)-1);
+            end
+            if AdjVolIsFiner_ZXMinusDirec
+                NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    =  NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    + (MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx-1)-1);
+            else
+                NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                     =  NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                     + (MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx)-1);
+            end
             NodePerXRow(YIdx,ZIdx) = NodePerXRow(YIdx,ZIdx) + NodePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         NodePerXYPlane(ZIdx) = NodePerXYPlane(ZIdx) + NodePerXRow(YIdx,ZIdx);
     end
     for YIdx = YSize+1
         for XIdx = 1:XSize
+            if MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,max([ZIdx-1 1]))>MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx)
+                AdjVolIsFiner_YZMinusDirec = true;
+            else
+                AdjVolIsFiner_YZMinusDirec = false;
+            end            
+            if MeshMeasurements.LocalGridFineness(max([XIdx-1 1]),YIdx-1,ZIdx)>MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx)
+                AdjVolIsFiner_XYMinusDirec = true;
+            else
+                AdjVolIsFiner_XYMinusDirec = false;
+            end
             NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
-                = (MeshMeasurements.LocalGridFineness(XIdx,YSize,ZIdx)).^(2);
+                = 1+(MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx)-1)^2;
+            if AdjVolIsFiner_YZMinusDirec
+                NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    =  NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    + (MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx-1)-1);
+            else
+                NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                     =  NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                     + (MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx)-1);
+            end
+            if AdjVolIsFiner_XYMinusDirec
+                NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    =  NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    + (MeshMeasurements.LocalGridFineness(XIdx-1,YIdx-1,ZIdx)-1);
+            else
+                NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                     =  NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                     + (MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx)-1);
+            end
             NodePerXRow(YIdx,ZIdx) = NodePerXRow(YIdx,ZIdx) + NodePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         for XIdx = XSize+1
             NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
-                = MeshMeasurements.LocalGridFineness(XSize,YSize,ZIdx);
+                = MeshMeasurements.LocalGridFineness(XIdx-1,YIdx-1,ZIdx);
             NodePerXRow(YIdx,ZIdx) = NodePerXRow(YIdx,ZIdx) + NodePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         NodePerXYPlane(ZIdx) = NodePerXYPlane(ZIdx) + NodePerXRow(YIdx,ZIdx);
@@ -594,13 +766,41 @@ end
 for ZIdx = ZSize+1
     for YIdx = 1:YSize
         for XIdx = 1:XSize
+            if MeshMeasurements.LocalGridFineness(max([XIdx-1 1]),YIdx,ZIdx-1)>MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx)
+                AdjVolIsFiner_ZXMinusDirec = true;
+            else
+                AdjVolIsFiner_ZXMinusDirec = false;
+            end            
+            if MeshMeasurements.LocalGridFineness(XIdx,max([YIdx-1 1]),ZIdx-1)>MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx)
+                AdjVolIsFiner_YZMinusDirec = true;
+            else
+                AdjVolIsFiner_YZMinusDirec = false;
+            end
             NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
-                = (MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZSize)).^(2);
+                = 1+(MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx-1)-1)^2;
+            if AdjVolIsFiner_ZXMinusDirec
+                NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    =  NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    + (MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx-1)-1);
+            else
+                NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    =  NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    + (MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx-1)-1);
+            end
+            if AdjVolIsFiner_YZMinusDirec
+                NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    =  NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    + (MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx-1)-1);
+            else
+                NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    =  NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                    + (MeshMeasurements.LocalGridFineness(XIdx,YIdx,ZIdx-1)-1);
+            end
             NodePerXRow(YIdx,ZIdx) = NodePerXRow(YIdx,ZIdx) + NodePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         for XIdx = XSize+1
-           NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
-                = (MeshMeasurements.LocalGridFineness(XSize,YIdx,ZSize));
+            NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
+                = MeshMeasurements.LocalGridFineness(XIdx-1,YIdx,ZIdx-1);
             NodePerXRow(YIdx,ZIdx) = NodePerXRow(YIdx,ZIdx) + NodePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         NodePerXYPlane(ZIdx) = NodePerXYPlane(ZIdx) + NodePerXRow(YIdx,ZIdx);
@@ -608,7 +808,7 @@ for ZIdx = ZSize+1
     for YIdx = YSize+1
         for XIdx = 1:XSize
             NodePerCoarseGrid(XIdx,YIdx,ZIdx) ...
-                = (MeshMeasurements.LocalGridFineness(XIdx,YSize,ZSize));
+                = MeshMeasurements.LocalGridFineness(XIdx,YIdx-1,ZIdx-1);
             NodePerXRow(YIdx,ZIdx) = NodePerXRow(YIdx,ZIdx) + NodePerCoarseGrid(XIdx,YIdx,ZIdx);
         end
         for XIdx = XSize+1
@@ -658,22 +858,27 @@ Num_of_Elem.SpP = YZFaceNum + ZXFaceNum + XYFaceNum;
 Num_of_Elem.SpS = XEdgeNum  + YEdgeNum  + ZEdgeNum;
 Num_of_Elem.SpN = NodeNum;
 
+
 [SpElemPositionIdx,ElemFineness] = CalcSpElemPositionIdx(MeshMeasurements,ElemPer,Num_of_Elem);
 
 if any(ElemFineness.SpV==0) || any(ElemFineness.SpP==0) ...
         || any(ElemFineness.SpS==0)
     disp('Fineness undefined for some elements')
 end
-
+disp('RefMesh_Subgrid:Constructing DivMatrix sD')
 sD = Subgrid_sD(SpElemPositionIdx,ElemFineness,ElemPer);
+disp('RefMesh_Subgrid:Constructing CurlMatrix sC')
 sC = Subgrid_sC(SpElemPositionIdx,ElemFineness,ElemPer);
+disp('RefMesh_Subgrid:Constructing GradMatrix sG')
 sG = Subgrid_sG(SpElemPositionIdx,ElemFineness,ElemPer);
 
 for SpVIdx = 1:Num_of_Elem.SpV
     NodePos.Dual(SpVIdx).Vec = ...
         [MeshMeasurements.dxCoarse;MeshMeasurements.dyCoarse;MeshMeasurements.dzCoarse] .* SpElemPositionIdx.SpV(:,SpVIdx);
 end
+disp('RefMesh_Subgrid:Calculating NodePositions')
 NodePos.Prim = Subgrid_NodePos_Prim(SpElemPositionIdx,ElemPer,ElemFineness,sG,sC,sD,MeshMeasurements);
+
 for ZIdx = 1:ZSize
     for YIdx = 1:YSize
         for XIdx = 1:XSize
@@ -687,7 +892,7 @@ for ZIdx = 1:ZSize
     end
 end
 
-
+disp('RefMesh_Subgrid:Setting Boundary Condition: Perfect Electric Wall')
 SpElemProperties.SpP.ElecWall = false(1,Num_of_Elem.SpP);
 ElecWallSpPIdx = [...
     (1:ElemPer.YZFacePerYZPlane(1)) ...
@@ -701,7 +906,7 @@ SpElemProperties.SpP.ElecWall(ElecWallSpPIdx) = true;
 SpElemProperties.SpS.PEC = false(1,Num_of_Elem.SpS);
 for SpPIdx = find(SpElemProperties.SpP.ElecWall)
     for IncSpSIdx = find(sC(SpPIdx,:))
-        SpElemProperties.SpS.PEC(SpPIdx) = true;
+        SpElemProperties.SpS.PEC(IncSpSIdx) = true;
     end
 end
 
@@ -896,12 +1101,12 @@ for SpPIdx = 1:ElemPer.YZFaceNum
                 sC_Num_Nonzeros = sC_Num_Nonzeros +1;
                 sC_Nonzeros_Row(sC_Num_Nonzeros) = SpPIdx;
                 sC_Nonzeros_Col(sC_Num_Nonzeros) = SpSIdx;
-                sC_Nonzeros_Val(sC_Num_Nonzeros) = -1;
+                sC_Nonzeros_Val(sC_Num_Nonzeros) =  1;
             elseif abs(SpElemPositionIdx.SpP(3,SpPIdx) + 0.5/ElemFineness.SpP(SpPIdx) - SpElemPositionIdx.SpS(3,SpSIdx) ) < EPSILON
                 sC_Num_Nonzeros = sC_Num_Nonzeros +1;
                 sC_Nonzeros_Row(sC_Num_Nonzeros) = SpPIdx;
                 sC_Nonzeros_Col(sC_Num_Nonzeros) = SpSIdx;
-                sC_Nonzeros_Val(sC_Num_Nonzeros) =  1;
+                sC_Nonzeros_Val(sC_Num_Nonzeros) = -1;
             end
         end
     end
@@ -963,12 +1168,12 @@ for SpPIdx = ElemPer.YZFaceNum+1:ElemPer.YZFaceNum+ElemPer.ZXFaceNum
                 sC_Num_Nonzeros = sC_Num_Nonzeros +1;
                 sC_Nonzeros_Row(sC_Num_Nonzeros) = SpPIdx;
                 sC_Nonzeros_Col(sC_Num_Nonzeros) = SpSIdx;
-                sC_Nonzeros_Val(sC_Num_Nonzeros) = -1;
+                sC_Nonzeros_Val(sC_Num_Nonzeros) =  1;
             elseif abs(SpElemPositionIdx.SpP(1,SpPIdx) + 0.5/ElemFineness.SpP(SpPIdx) - SpElemPositionIdx.SpS(1,SpSIdx) ) < EPSILON
                 sC_Num_Nonzeros = sC_Num_Nonzeros +1;
                 sC_Nonzeros_Row(sC_Num_Nonzeros) = SpPIdx;
                 sC_Nonzeros_Col(sC_Num_Nonzeros) = SpSIdx;
-                sC_Nonzeros_Val(sC_Num_Nonzeros) =  1;
+                sC_Nonzeros_Val(sC_Num_Nonzeros) = -1;
             end
         end
     end
@@ -1030,12 +1235,12 @@ for SpPIdx = ElemPer.YZFaceNum+ElemPer.ZXFaceNum+1:ElemPer.YZFaceNum+ElemPer.ZXF
                 sC_Num_Nonzeros = sC_Num_Nonzeros +1;
                 sC_Nonzeros_Row(sC_Num_Nonzeros) = SpPIdx;
                 sC_Nonzeros_Col(sC_Num_Nonzeros) = SpSIdx;
-                sC_Nonzeros_Val(sC_Num_Nonzeros) = -1;
+                sC_Nonzeros_Val(sC_Num_Nonzeros) =  1;
             elseif abs(SpElemPositionIdx.SpP(2,SpPIdx) + 0.5/ElemFineness.SpP(SpPIdx) - SpElemPositionIdx.SpS(2,SpSIdx) ) < EPSILON
                 sC_Num_Nonzeros = sC_Num_Nonzeros +1;
                 sC_Nonzeros_Row(sC_Num_Nonzeros) = SpPIdx;
                 sC_Nonzeros_Col(sC_Num_Nonzeros) = SpSIdx;
-                sC_Nonzeros_Val(sC_Num_Nonzeros) =  1;
+                sC_Nonzeros_Val(sC_Num_Nonzeros) = -1;
             end
         end
     end
@@ -1198,8 +1403,12 @@ NodePosPrimM = zeros(3,size(sG,2));
 for SpNIdx = 1:size(sG,2)
     NodePosPrimM(:,SpNIdx) = SpElemPositionIdx.SpN(:,SpNIdx);
 end
-
+ProgressPercentage = -10;
 for SpVIdx = 1:size(sD,1)
+    if mod(SpVIdx,round(0.1*size(sD,1))) == 1
+        ProgressPercentage = ProgressPercentage + 10;
+        disp(['Subgrid_NodePos_Prim : Progress - ',num2str(ProgressPercentage),' %'])
+    end
     YZSpPs = 1:ElemPer.YZFaceNum;
     IncYZSpPIdx = find(sD(SpVIdx,YZSpPs))+0;
     BoundaryYZSpPIdx = IncYZSpPIdx(logical(ElemFineness.SpP(IncYZSpPIdx)/ElemFineness.SpV(SpVIdx) >1));
@@ -1249,7 +1458,7 @@ switch mod(ElemFineness.SpP(BoundarySpPIdx(1))/ElemFineness.SpV(SpVIdx),2)
         sC_LocalOnBoundary = sC(BoundarySpPIdx,BoundarySpSIdx);
         sG_LocalOnBoundary = sG(BoundarySpSIdx,BoundarySpNIdx);
         Next_JustDoneNodeSet_LocalIdx = CenterSpNLocalIdx;
-        DoneFlag_Local = ~CenterSpNLocalLogIdx;
+        DoneFlag_Local = CenterSpNLocalLogIdx;
         while any(~DoneFlag_Local)
             JustDoneNodeSet_LocalIdx = Next_JustDoneNodeSet_LocalIdx;
             Next_JustDoneNodeSet_LocalIdx = [];

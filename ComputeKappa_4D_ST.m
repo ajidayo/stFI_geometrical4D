@@ -6,10 +6,10 @@ FaceArea.Prim = zeros(Num_of_Elem.SpP,1);
 FaceArea.Dual = zeros(Num_of_Elem.SpS,1);
 DeltaSTNPos   = sparse(SpDIM, Num_of_Elem.STN);
 [kappa,FaceArea] = ComputeKappa_for_STFI_SpPs_and_SpSs(kappa,FaceArea,DeltaSTNPos,cdt,sG,sC,sD,D0,D1,D2,D3,NodePos,SpElemProperties,STElemProperties);
-disp('call ComputeKappa_for_NonSTFI_SpSs')
+%disp('call ComputeKappa_for_NonSTFI_SpSs')
 [kappa,FaceArea.Dual] = ComputeKappa_for_NonSTFI_SpSs(kappa,FaceArea.Dual,cdt,sG,sC,sD,NodePos,SpElemProperties);
-disp('call ComputeKappa_for_NonSFI_SpPs')
-[kappa,FaceArea.Prim] = ComputeKappa_for_NonSFI_SpPs(kappa,FaceArea.Prim,cdt,sG,sC,sD,NodePos,SpElemProperties);
+%disp('call ComputeKappa_for_NonSTFI_SpPs')
+[kappa,FaceArea.Prim] = ComputeKappa_for_NonSTFI_SpPs(kappa,FaceArea.Prim,cdt,sG,sC,sD,NodePos,SpElemProperties);
 end
 %%
 function [kappa,FaceArea] = ComputeKappa_for_STFI_SpPs_and_SpSs(kappa,FaceArea,DeltaSTNPos,cdt,sG,sC,sD,D0,D1,D2,D3,NodePos,SpElemProperties,STElemProperties)
@@ -51,7 +51,7 @@ for SpPIdx = find(SpElemProperties.SpP.UpdNumBoundary) % compute Delta for SpSs 
             end
         end
         if norm(DeltaSTN_Fetch) == 0
-            disp('norm(DeltaSTN_Fetch) == 0')
+            disp('ComputeKappa_4D_ST:norm(DeltaSTN_Fetch) == 0')
             pause;
         end
         for SpNIdx = SpNIdx_DefPrimFace
@@ -140,7 +140,7 @@ SpEndPoints = find(sG(SpSIdx,:));
 STNIdx_Past = SpElemProperties.SpN.FirstSTNIdx(SpEndPoints)-1;
 STNIdx_Futr = SpElemProperties.SpN.FirstSTNIdx(SpEndPoints)  ;
 for STPIdx = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+1:...
-        SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+SpElemProperties.SpS.UpdNum(SpSIdx)
+        SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+SpElemProperties.SpS.UpdNum(SpSIdx)-1
     STNIdx_Past = STNIdx_Past+1;
     STNIdx_Futr = STNIdx_Futr+1;
     
@@ -162,9 +162,9 @@ for STPIdx = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+1:...
     DeltaSTNPos(:,STNIdx_Futr) = DeltaSTNPos(:,STNIdx_Past) ...
         + Delta_of_DeltaNodePos*LocalBasis1;
 end
-STNIdx_Last  = STNIdx_Futr;
-STNIdx_First = SpElemProperties.SpN.FirstSTNIdx(SpEndPoints);
-DeltaSTNPos(STNIdx_First) = DeltaSTNPos(STNIdx_Last);
+%STNIdx_Last  = STNIdx_Futr;
+%STNIdx_First = SpElemProperties.SpN.FirstSTNIdx(SpEndPoints);
+%DeltaSTNPos(STNIdx_First) = DeltaSTNPos(STNIdx_Last);
 end
 %%
 function DeltaDirection = findDeltaDirection(SpSTgt,sG,sC,NodePosPrim,SpElemProperties)
@@ -418,7 +418,7 @@ end
 kappa_Local(1+SpElemProperties.SpP.UpdNum(SpPIdx)) = kappa_Local(1);
 end
 %%
-function [kappa,FaceAreaPrim] = ComputeKappa_for_NonSFI_SpPs(kappa,FaceAreaPrim,cdt,sG,sC,sD,NodePos,SpElemProperties)
+function [kappa,FaceAreaPrim] = ComputeKappa_for_NonSTFI_SpPs(kappa,FaceAreaPrim,cdt,sG,sC,sD,NodePos,SpElemProperties)
 for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI==false)
     switch SpElemProperties.SpP.ElecWall(SpPIdx)
         case true

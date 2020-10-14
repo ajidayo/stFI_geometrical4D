@@ -1,8 +1,8 @@
 % DONE 1 Properties_of_Sp_Elements, PML part
 % DONE 2 RefMesh_Subgrid, Corner
-% DONE 3 RefMesh_Subgrid, Boundary Conditions 
+% DONE 3 RefMesh_Subgrid, Boundary Conditions
 % DONE 4 RefMesh_Subgrid, Given area and lengths
-% DONE 5 Kappa, NonOrthogonal 
+% DONE 5 Kappa, NonOrthogonal
 % DONE 6 Kappa, Corner
 % DONE 7 Source
 % DONE 8 Plotfunctions
@@ -17,12 +17,13 @@ SelectPreset = 2; % Preset = {1,2} is available. See ParameterPreset for details
 [sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties,ElemPer] = GenerateReferenceMesh_3D_Sp(RefMeshPresetType,MeshMeasurements,LocalUpdateNum);
 RefImpedance_SpV = ones(Num_of_Elem.SpV,1);
 
+disp('point1')
 %%
 [SpElemProperties,STElemProperties,Num_of_Elem,PrimFacePos] = Properties_of_Sp_Elements(sG,sC,sD,SpElemProperties,Num_of_Elem,NodePos);
-
 disp('point2')
 [D0,D1,D2,D3]               = ComputeST_Mesh(sG,sC,sD,SpElemProperties,Num_of_Elem);
 disp('point2.1')
+
 Task                        = struct;
 TaskDepGraph                = digraph;
 Map_SpElem_to_FirstGlobTask = struct;
@@ -37,6 +38,8 @@ Map_SpElem_to_FirstGlobTask = struct;
     = GenerateST_FI_Tasks_4D_ST(SpElemProperties,STElemProperties,Task,TaskDepGraph,Map_SpElem_to_FirstGlobTask);
 [Task,TaskDepGraph,SpElemProperties,STElemProperties,Map_SpElem_to_FirstGlobTask] ...
     = GenerateSp_FI_Tasks_4D_ST(sC,sD,SpElemProperties,STElemProperties,Num_of_Elem,Task,TaskDepGraph,Map_SpElem_to_FirstGlobTask);
+
+clearvars Map_SpElem_to_FirstGlobTask
 
 TaskOrder = SortTasks(Task,TaskDepGraph,STElemProperties,D1,D2);
 
@@ -73,7 +76,7 @@ Num_of_PMLDualDoF_Init = size(find(SpElemProperties.SpP.PML==true),2)+size(find(
 FieldDoFs  = zeros(Num_of_Elem.SpP+Num_of_Elem.SpS+Num_of_PMLDualDoF_Init,1);
 % FieldDoFs  = rand(Num_of_Elem.SpP+Num_of_Elem.SpS+Num_of_PMLDualDoF_Init,1);
 
-Num_of_Steps = 100;
+Num_of_Steps = 10;
 disp(['Number of Steps = ', num2str(Num_of_Steps)])
 Time = 0;
 disp('point6')

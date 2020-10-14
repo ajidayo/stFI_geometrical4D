@@ -26,7 +26,7 @@ Adj_SpP_PartiallyOmitted = graph(sDPattern_PartiallyOmitted.' * sDPattern_Partia
 clearvars Adj_SpP_PartiallyOmitted
 
 [SpFI_TaskInfo,SpElemProperties] ...
-     = EliminateST_FI_SpPs(SG_bin_SpP,SG_ElemNum_SpP,SpElemProperties,Num_of_Elem);
+     = Eliminate_STFIandPMLSpPs(SG_bin_SpP,SG_ElemNum_SpP,SpElemProperties,Num_of_Elem);
 clearvars SG_bin_SpP SG_ElemNum_SpP
 for SpFI_TaskIdx =1:size(SpFI_TaskInfo,2)
     SpFI_TaskInfo(SpFI_TaskIdx).ElemIdx.SpS = 0;
@@ -168,7 +168,7 @@ clearvars StaTask TgtTask
 end
 
 %% 
-function [SpFI_TaskInfo,SpElemProperties] = EliminateST_FI_SpPs(SG_bin_SpP,SG_ElemNum_SpP,SpElemProperties,Num_of_Elem)
+function [SpFI_TaskInfo,SpElemProperties] = Eliminate_STFIandPMLSpPs(SG_bin_SpP,SG_ElemNum_SpP,SpElemProperties,Num_of_Elem)
 SpElemProperties.SpP.SpFI_TaskIdx=zeros(Num_of_Elem.SpP,1);
 SpFI_TaskIdx=0;
 for SGIdx=1:size(SG_ElemNum_SpP,2)

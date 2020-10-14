@@ -34,7 +34,6 @@ for SpPIdx = 1:size(FaceArea.Prim,1)
         yIdx =  ceil(yIdx+EPSILON);
         zIdx = round(zIdx)+1;
     else
-        disp("hoge")
         continue;
     end
     B_SquareoidMesh(xIdx,yIdx,zIdx,dimIdx) ...

@@ -191,8 +191,8 @@ for SpSIdx  = PML_TaskInfo.ElemIdx.SpS
                 PMLDualDoFPast  = SpElemProperties.SpP.FirstPMLImagDualSTP(IncSpPIdx)   +TimeSection_tgt-1;
                 Map_PMLDualDoFPast_IncSpP(PMLDualDoFPast,IncSpPIdx)     = true;
             case false
-                PrimSTPPast     = SpElemProperties.SpP.FirstSTPIdx(IncSpPIdx)           +TimeSection_tgt-1;
-                Map_DoFPast_IncSpP(PrimSTPPast,IncSpPIdx)               = true;
+                PrimSTPPast = SpElemProperties.SpP.FirstSTPIdx(IncSpPIdx) +TimeSection_tgt-1;
+                Map_DoFPast_IncSpP(PrimSTPPast,IncSpPIdx) = true;
         end
     end
 end
@@ -214,7 +214,7 @@ PMLCoeff_Ampere_gSpPast = spdiags(PMLCoeff_Ampere_gSpPast,0,Num_of_Elem.SpS,Num_
 PMLCoeff_Ampere_gTi     = (1+0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpP.ThreeOneTwo).^(-1);
 PMLCoeff_Ampere_gTi     = spdiags(PMLCoeff_Ampere_gTi,0,Num_of_Elem.SpP,Num_of_Elem.SpP);
 if PMLOFF
-    PMLCoeff_Ampere_gPMLOFFSpPast = speye(Num_of_Elem.SpS);
+    PMLCoeff_Ampere_gSpPast = speye(Num_of_Elem.SpS);
     PMLCoeff_Ampere_gTi     = speye(Num_of_Elem.SpP);
 end
 

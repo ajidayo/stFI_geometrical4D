@@ -7,6 +7,7 @@ switch RefMeshPresetType
     case 'FDTDWithSubgrid'
         [sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties,ElemPer] ...
             = RefMesh_Subgrid(MeshMeasurements,LocalUpdateNum);
+        
     case 'BeltLike_LocalTimeStep_NoRefinement'
    
     case 'BeltLike_LocalTimeStep_LocalRefinement'
