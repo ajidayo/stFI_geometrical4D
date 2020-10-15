@@ -1,5 +1,5 @@
 function TaskOrder = SortTasks(Task,TaskDepGraph,STElemProperties,D1,D2)
-
+disp('SortTasks: Sorting DoF-calculating tasks in a viable order')
 %% add edges to task dependency graph: Dependencies between SpFI tasks and STFI tasks
 EdgeIdx =0;
 

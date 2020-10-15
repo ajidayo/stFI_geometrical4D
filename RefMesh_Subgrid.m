@@ -1,10 +1,10 @@
 function [sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties,ElemPer] = RefMesh_Subgrid(MeshMeasurements,LocalUpdateNum)
-
+global EPSILON
 XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
 YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
 ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 
-disp('RefMesh_Subgrid:Calculating Number of Elements')
+disp('RefMesh_Subgrid: Counting the number of elements')
 VolPerCoarseGrid = zeros(XSize,YSize,ZSize); 
 VolPerXRow      = zeros(YSize,ZSize);
 VolPerXYPlane   = zeros(ZSize,1);
@@ -871,13 +871,46 @@ disp('RefMesh_Subgrid:Constructing CurlMatrix sC')
 sC = Subgrid_sC(SpElemPositionIdx,ElemFineness,ElemPer);
 disp('RefMesh_Subgrid:Constructing GradMatrix sG')
 sG = Subgrid_sG(SpElemPositionIdx,ElemFineness,ElemPer);
+MeshEndsAt = [MeshMeasurements.XCoord;MeshMeasurements.YCoord;MeshMeasurements.ZCoord];
+SpDiscreteWidth_Coarse = [MeshMeasurements.dxCoarse;MeshMeasurements.dyCoarse;MeshMeasurements.dzCoarse];
+SubgridsStartsFrom = [MeshMeasurements.XFineFromCoord;MeshMeasurements.YFineFromCoord;MeshMeasurements.ZFineFromCoord];
+SubgridsStartsFrom(logical(SubgridsStartsFrom==0)) = -Inf;
+SubgridsEndsAt = [MeshMeasurements.XFineToCoord;MeshMeasurements.YFineToCoord;MeshMeasurements.ZFineToCoord];
+SubgridsEndsAt(logical(abs(SubgridsEndsAt-MeshEndsAt))<EPSILON) = Inf;
+NonZeroEntityNum=0;
+for SpNIdx = 1:Num_of_Elem.SpN
+    if size(find(any([logical(abs(SpDiscreteWidth_Coarse.*SpElemPositionIdx.SpN(:,SpNIdx)-SubgridsStartsFrom)<EPSILON);...
+        logical(abs(SpDiscreteWidth_Coarse.*SpElemPositionIdx.SpN(:,SpNIdx)-SubgridsEndsAt)<EPSILON)],2)),1)...
+        >=2
+    disp(['RefMesh_Subgrid: SpNIdx = ', num2str(SpNIdx),' is judged as being on the edge/corner of the Subgrid region'])
+    NonZeroEntityNum = NonZeroEntityNum + 1;
+    isOnFineGridCorner_NoneZeroRow(NonZeroEntityNum) = 1;
+    isOnFineGridCorner_NoneZeroCol(NonZeroEntityNum) = SpNIdx;
+    isOnFineGridCorner_NoneZeroVal(NonZeroEntityNum) = true;
+    end
+end
+if NonZeroEntityNum ~= 0 &&  max(MeshMeasurements.LocalGridFineness,[],'all')>1
+    isOnFineGridCorner = sparse(isOnFineGridCorner_NoneZeroRow,isOnFineGridCorner_NoneZeroCol,isOnFineGridCorner_NoneZeroVal,1,Num_of_Elem.SpN);
+    if max(LocalUpdateNum,[],'all') == max(MeshMeasurements.LocalGridFineness,[],'all')
+        SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion = isOnFineGridCorner;
+    else
+        SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion = sparse(false(1,Num_of_Elem.SpN));
+    end
+elseif NonZeroEntityNum ~= 0 && max(LocalUpdateNum,[],'all') >1
+    isOnFineGridCorner =  sparse(false(1,Num_of_Elem.SpN));
+    SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion ...
+        = sparse(isOnFineGridCorner_NoneZeroRow,isOnFineGridCorner_NoneZeroCol,isOnFineGridCorner_NoneZeroVal,1,Num_of_Elem.SpN);
+else
+    isOnFineGridCorner =  sparse(false(1,Num_of_Elem.SpN));
+    SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion = sparse(false(1,Num_of_Elem.SpN));
+end
 
+disp('RefMesh_Subgrid:Calculating NodePositions')
 for SpVIdx = 1:Num_of_Elem.SpV
     NodePos.Dual(SpVIdx).Vec = ...
         [MeshMeasurements.dxCoarse;MeshMeasurements.dyCoarse;MeshMeasurements.dzCoarse] .* SpElemPositionIdx.SpV(:,SpVIdx);
 end
-disp('RefMesh_Subgrid:Calculating NodePositions')
-NodePos.Prim = Subgrid_NodePos_Prim(SpElemPositionIdx,ElemPer,ElemFineness,sG,sC,sD,MeshMeasurements);
+NodePos.Prim = Subgrid_NodePos_Prim(SpElemPositionIdx,ElemPer,ElemFineness,isOnFineGridCorner,sG,sC,sD,MeshMeasurements);
 
 for ZIdx = 1:ZSize
     for YIdx = 1:YSize
@@ -893,23 +926,31 @@ for ZIdx = 1:ZSize
 end
 
 disp('RefMesh_Subgrid:Setting Boundary Condition: Perfect Electric Wall')
-SpElemProperties.SpP.ElecWall = false(1,Num_of_Elem.SpP);
-ElecWallSpPIdx = [...
-    (1:ElemPer.YZFacePerYZPlane(1)) ...
-    (sum(ElemPer.YZFacePerYZPlane(1:XSize))+1:ElemPer.YZFaceNum) ...
-    ElemPer.YZFaceNum + (1:ElemPer.ZXFacePerZXPlane(1)) ...
-    ElemPer.YZFaceNum + (sum(ElemPer.ZXFacePerZXPlane(1:YSize))+1:ElemPer.ZXFaceNum) ...
-    ElemPer.YZFaceNum + ElemPer.ZXFaceNum + (1:ElemPer.XYFacePerXYPlane(1)) ...
-    ElemPer.YZFaceNum + ElemPer.ZXFaceNum + (sum(ElemPer.XYFacePerXYPlane(1:ZSize))+1:ElemPer.XYFaceNum)];
-SpElemProperties.SpP.ElecWall(ElecWallSpPIdx) = true;
-
-SpElemProperties.SpS.PEC = false(1,Num_of_Elem.SpS);
+SpElemProperties.SpP.ElecWall = sparse(false(1,Num_of_Elem.SpP));
+MeshEndsAt = [MeshMeasurements.XCoord;MeshMeasurements.YCoord;MeshMeasurements.ZCoord];    
+for SpPIdx = [...
+        (1:ElemPer.YZFacePerYZPlane(1)) ...
+        (sum(ElemPer.YZFacePerYZPlane(1:XSize))+1:ElemPer.YZFaceNum) ...
+        ElemPer.YZFaceNum + (1:ElemPer.ZXFacePerZXPlane(1)) ...
+        ElemPer.YZFaceNum + (sum(ElemPer.ZXFacePerZXPlane(1:YSize))+1:ElemPer.ZXFaceNum) ...
+        ElemPer.YZFaceNum + ElemPer.ZXFaceNum + (1:ElemPer.XYFacePerXYPlane(1)) ...
+        ElemPer.YZFaceNum + ElemPer.ZXFaceNum + (sum(ElemPer.XYFacePerXYPlane(1:ZSize))+1:ElemPer.XYFaceNum)]
+    NodeLogIdxs_DefFace = logical(logical(sC(SpPIdx,:))*logical(sG));
+    MeanPosOfFace = mean([NodePos.Prim(NodeLogIdxs_DefFace).Vec],2);
+    if size(find(any([logical(abs(MeanPosOfFace-[0;0;0])<EPSILON);...
+            logical(abs(MeanPosOfFace-MeshEndsAt)<EPSILON)],2)),1)...
+            >=1
+        SpElemProperties.SpP.ElecWall(SpPIdx) = true;
+    end
+end
+SpElemProperties.SpS.PEC = sparse(false(1,Num_of_Elem.SpS));
 for SpPIdx = find(SpElemProperties.SpP.ElecWall)
     for IncSpSIdx = find(sC(SpPIdx,:))
         SpElemProperties.SpS.PEC(IncSpSIdx) = true;
     end
 end
 
+disp('RefMesh_Subgrid:Pre-calculating the area of the faces in the FDTD-like region.')
 SpElemProperties.SpP.PrimAreaIsGiven = true(1,Num_of_Elem.SpP);
 SpElemProperties.SpP.DualLengIsGiven = true(1,Num_of_Elem.SpP);
 SpElemProperties.SpS.PrimLengIsGiven = true(1,Num_of_Elem.SpS);
@@ -917,9 +958,9 @@ SpElemProperties.SpS.DualAreaIsGiven = true(1,Num_of_Elem.SpS);
 for SpPIdx = 1:Num_of_Elem.SpP
     IncSpVIdx = find(sD(:,SpPIdx).');
     if SpElemProperties.SpP.ElecWall(SpPIdx) == false
-        if SpElemProperties.SpV.UpdNum(IncSpVIdx(1)) ~= SpElemProperties.SpV.UpdNum(IncSpVIdx(2))
-            SpSLogIdx_tgt = any(logical(sG(:,any(logical(sG(logical(sC(SpPIdx,:).'),:)))).'));
-            SpPLogIdx_tgt = any(logical(sC(:,SpSLogIdx_tgt).'));
+        if ElemFineness.SpV(IncSpVIdx(1)) ~= ElemFineness.SpV(IncSpVIdx(2))
+            SpPLogIdx_tgt = logical(logical(sD(:,SpPIdx).')*logical(sD));
+            SpSLogIdx_tgt = logical(sC(SpPLogIdx_tgt,:));
             SpElemProperties.SpP.PrimAreaIsGiven(SpPLogIdx_tgt) = false;
             SpElemProperties.SpP.DualLengIsGiven(SpPLogIdx_tgt) = false;
             SpElemProperties.SpS.PrimLengIsGiven(SpSLogIdx_tgt) = false;
@@ -1396,17 +1437,18 @@ sG = sparse(sG_Nonzeros_Row,sG_Nonzeros_Col,sG_Nonzeros_Val,size(ElemFineness.Sp
 
 end
 
-function NodePos_Prim = Subgrid_NodePos_Prim(SpElemPositionIdx,ElemPer,ElemFineness,sG,sC,sD,MeshMeasurements)
+function NodePos_Prim = Subgrid_NodePos_Prim(SpElemPositionIdx,ElemPer,ElemFineness,isOnFineGridCorner,sG,sC,sD,MeshMeasurements)
+clear AdjustPrimNodePos
 
 NodePosPrimM = zeros(3,size(sG,2));
 
 for SpNIdx = 1:size(sG,2)
     NodePosPrimM(:,SpNIdx) = SpElemPositionIdx.SpN(:,SpNIdx);
 end
-ProgressPercentage = -10;
+ProgressPercentage = -25;
 for SpVIdx = 1:size(sD,1)
-    if mod(SpVIdx,round(0.1*size(sD,1))) == 1
-        ProgressPercentage = ProgressPercentage + 10;
+    if mod(SpVIdx,round(0.25*size(sD,1))) == 1
+        ProgressPercentage = ProgressPercentage + 25;
         disp(['Subgrid_NodePos_Prim : Progress - ',num2str(ProgressPercentage),' %'])
     end
     YZSpPs = 1:ElemPer.YZFaceNum;
@@ -1415,7 +1457,7 @@ for SpVIdx = 1:size(sD,1)
     if size(BoundaryYZSpPIdx,2)==0
         continue;
     end
-    NodePosPrimM = NodePosPrimM+AdjustPrimNodePos(BoundaryYZSpPIdx,SpVIdx,SpElemPositionIdx,ElemFineness,sG,sC,sD);
+    NodePosPrimM = NodePosPrimM+AdjustPrimNodePos(BoundaryYZSpPIdx,SpVIdx,SpElemPositionIdx,ElemFineness,isOnFineGridCorner,sG,sC,sD);
     
     ZXSpPs = ElemPer.YZFaceNum+1:ElemPer.YZFaceNum+ElemPer.ZXFaceNum;
     IncZXSpPIdx = find(sD(SpVIdx,ZXSpPs))+ElemPer.YZFaceNum;
@@ -1423,7 +1465,7 @@ for SpVIdx = 1:size(sD,1)
     if size(BoundaryZXSpPIdx,2)==0
         continue;
     end
-    NodePosPrimM = NodePosPrimM+AdjustPrimNodePos(BoundaryZXSpPIdx,SpVIdx,SpElemPositionIdx,ElemFineness,sG,sC,sD);
+    NodePosPrimM = NodePosPrimM+AdjustPrimNodePos(BoundaryZXSpPIdx,SpVIdx,SpElemPositionIdx,ElemFineness,isOnFineGridCorner,sG,sC,sD);
     
     XYSpPs = ElemPer.YZFaceNum+ElemPer.ZXFaceNum+1:ElemPer.YZFaceNum+ElemPer.ZXFaceNum+ElemPer.XYFaceNum; 
     IncXYSpPIdx = find(sD(SpVIdx,XYSpPs))+ElemPer.YZFaceNum+ElemPer.ZXFaceNum;
@@ -1431,7 +1473,7 @@ for SpVIdx = 1:size(sD,1)
     if size(BoundaryXYSpPIdx,2)==0
         continue;
     end
-    NodePosPrimM = NodePosPrimM+AdjustPrimNodePos(BoundaryXYSpPIdx,SpVIdx,SpElemPositionIdx,ElemFineness,sG,sC,sD);
+    NodePosPrimM = NodePosPrimM+AdjustPrimNodePos(BoundaryXYSpPIdx,SpVIdx,SpElemPositionIdx,ElemFineness,isOnFineGridCorner,sG,sC,sD);
 end
 
 for SpNIdx = 1:size(sG,2)
@@ -1440,66 +1482,15 @@ end
 
 end
 %%
-function NodePosPrimDeltaM = AdjustPrimNodePos(BoundarySpPIdx,SpVIdx,SpElemPositionIdx,ElemFineness,sG,sC,sD)
+function NodePosPrimDeltaM = AdjustPrimNodePos(BoundarySpPIdx,SpVIdx,SpElemPositionIdx,ElemFineness,isOnFineGridCorner,sG,sC,sD)
 global EPSILON
+persistent isAlreadyAdjusted 
+
+if isempty(isAlreadyAdjusted)
+    isAlreadyAdjusted = false(1,size(sG,2));
+end
 
 NodePosPrimDeltaM = sparse(3,size(sG,2));
-
-switch mod(ElemFineness.SpP(BoundarySpPIdx(1))/ElemFineness.SpV(SpVIdx),2)
-    case 0
-        BoundarySpSLogIdx = logical(sum(logical(sC(BoundarySpPIdx,:))));
-        BoundarySpSIdx    = find(sum(logical(sC(BoundarySpPIdx,:))));
-        BoundarySpNLogIdx = logical(sum(logical(sG(BoundarySpSLogIdx,:))));
-        BoundarySpNIdx    = find(sum(logical(sG(BoundarySpSLogIdx,:))));
-        CenterSpNLocalLogIdx = ...
-            logical(sum((SpElemPositionIdx.SpN([2;3],BoundarySpNLogIdx)-(SpElemPositionIdx.SpV([2;3],SpVIdx))*ones(1,size(BoundarySpNIdx,2))).^2)<EPSILON);
-        CenterSpNLocalIdx = ...
-            find(sum((SpElemPositionIdx.SpN([2;3],BoundarySpNLogIdx)-(SpElemPositionIdx.SpV([2;3],SpVIdx))*ones(1,size(BoundarySpNIdx,2))).^2)<EPSILON);
-        sC_LocalOnBoundary = sC(BoundarySpPIdx,BoundarySpSIdx);
-        sG_LocalOnBoundary = sG(BoundarySpSIdx,BoundarySpNIdx);
-        Next_JustDoneNodeSet_LocalIdx = CenterSpNLocalIdx;
-        DoneFlag_Local = CenterSpNLocalLogIdx;
-        while any(~DoneFlag_Local)
-            JustDoneNodeSet_LocalIdx = Next_JustDoneNodeSet_LocalIdx;
-            Next_JustDoneNodeSet_LocalIdx = [];
-            for JustDoneNode_LocalIdx = JustDoneNodeSet_LocalIdx
-                JustDoneNode_GlobalIdx = BoundarySpNIdx(JustDoneNode_LocalIdx);
-                for IncSpS_LocalIdx = find(sG_LocalOnBoundary(:,JustDoneNode_LocalIdx).')
-                    IncSpS_GlobalIdx = BoundarySpSIdx(IncSpS_LocalIdx);
-                    IncSpP_LocalIdx  = find(sC_LocalOnBoundary(:,IncSpS_LocalIdx),1);
-                    IncSpP_GlobalIdx = BoundarySpPIdx(IncSpP_LocalIdx);
-                    PrimEdgeVec_Prototype  = SpElemPositionIdx.SpN* sG(IncSpS_GlobalIdx,:).';
-                    DualEdgeVec = SpElemPositionIdx.SpV* sD(:,IncSpP_GlobalIdx);
-                    SpanVec1 = norm(PrimEdgeVec_Prototype)^(-1)*PrimEdgeVec_Prototype;
-                    SpanVec2 = [...
-                        1*(DualEdgeVec(1)>max(DualEdgeVec([2 3])));...
-                        1*(DualEdgeVec(2)>max(DualEdgeVec([3 1])));...
-                        1*(DualEdgeVec(3)>max(DualEdgeVec([1 2])))...
-                        ];
-                    SpanVec2 = SpanVec2 - dot(SpanVec2,SpanVec1)*SpanVec1;
-                    SpanVec2 = norm(SpanVec2)^(-1)*SpanVec2;
-                    ProjectingPlaneVec = cross(SpanVec1,SpanVec2);
-                    ProjectingPlaneVec = norm(ProjectingPlaneVec)^(-1)*ProjectingPlaneVec;
-                    ProjectedDualEdge  = DualEdgeVec - dot(DualEdgeVec,ProjectingPlaneVec)*ProjectingPlaneVec;
-                    PrimEdgeVec_Actual = ...
-                        (norm(PrimEdgeVec_Prototype)/dot(ProjectedDualEdge,SpanVec2))...
-                        *(dot(ProjectedDualEdge,SpanVec2)*SpanVec1 - dot(ProjectedDualEdge,SpanVec1)*SpanVec2);
-                    PrimEdgeVec_Actual = - PrimEdgeVec_Actual*sG(IncSpS_GlobalIdx,JustDoneNode_GlobalIdx);
-                    Endpoint2_LocalIdx = find(sG_LocalOnBoundary(IncSpS_LocalIdx,:));
-                    Endpoint2_LocalIdx = Endpoint2_LocalIdx(logical(Endpoint2_LocalIdx~=JustDoneNode_LocalIdx));
-                    Endpoint2_GlobalIdx = BoundarySpNIdx(Endpoint2_LocalIdx);
-                    if DoneFlag_Local(Endpoint2_LocalIdx) == false
-                        NodePosPrimDeltaM(:,Endpoint2_GlobalIdx) ...
-                            = PrimEdgeVec_Actual + NodePosPrimDeltaM(:,JustDoneNode_GlobalIdx) ;
-                        Next_JustDoneNodeSet_LocalIdx(size(Next_JustDoneNodeSet_LocalIdx,2)+1) = Endpoint2_LocalIdx;
-                        DoneFlag_Local(Endpoint2_LocalIdx) = true;
-                    end
-                end
-            end
-        end
-    case 1
-        
-end
 
 % find incident faces with greater fineness. 
 % Here we assume that all of these faces are quadrangles.
@@ -1521,6 +1512,71 @@ end
 % do until all the nodes on the boundary of the faces are done
 % for all edges inc to these endpoints,  compute the shift amount of the other endpoint.
 % end if
+
+switch mod(ElemFineness.SpP(BoundarySpPIdx(1))/ElemFineness.SpV(SpVIdx),2)
+    case 0
+        BoundarySpSLogIdx = logical(sum(logical(sC(BoundarySpPIdx,:))));
+        BoundarySpSIdx    = find(sum(logical(sC(BoundarySpPIdx,:))));
+        BoundarySpNLogIdx = logical(sum(logical(sG(BoundarySpSLogIdx,:))));
+        BoundarySpNIdx    = find(sum(logical(sG(BoundarySpSLogIdx,:))));
+        %% x方向に制限されている
+        CenterSpNLocalLogIdx = ...
+            logical(sum((SpElemPositionIdx.SpN([2;3],BoundarySpNLogIdx)-(SpElemPositionIdx.SpV([2;3],SpVIdx))*ones(1,size(BoundarySpNIdx,2))).^2)<EPSILON);
+        CenterSpNLocalIdx = ...
+            find(sum((SpElemPositionIdx.SpN([2;3],BoundarySpNLogIdx)-(SpElemPositionIdx.SpV([2;3],SpVIdx))*ones(1,size(BoundarySpNIdx,2))).^2)<EPSILON);
+        sC_LocalOnBoundary = sC(BoundarySpPIdx,BoundarySpSIdx);
+        sG_LocalOnBoundary = sG(BoundarySpSIdx,BoundarySpNIdx);
+        Next_JustDoneNodeSet_LocalIdx = CenterSpNLocalIdx;
+        DoneFlag_Local = CenterSpNLocalLogIdx;
+        while any(~DoneFlag_Local)
+            JustDoneNodeSet_LocalIdx = Next_JustDoneNodeSet_LocalIdx;
+            Next_JustDoneNodeSet_LocalIdx = [];
+            for JustDoneNode_LocalIdx = JustDoneNodeSet_LocalIdx
+                JustDoneNode_GlobalIdx = BoundarySpNIdx(JustDoneNode_LocalIdx);
+                for IncSpS_LocalIdx = find(sG_LocalOnBoundary(:,JustDoneNode_LocalIdx).')
+                    IncSpS_GlobalIdx = BoundarySpSIdx(IncSpS_LocalIdx);
+                    IncSpP_LocalIdx  = find(sC_LocalOnBoundary(:,IncSpS_LocalIdx),1);
+                    IncSpP_GlobalIdx = BoundarySpPIdx(IncSpP_LocalIdx);
+                    PrimEdgeVec_Prototype  = SpElemPositionIdx.SpN* sG(IncSpS_GlobalIdx,:).';
+                    DualEdgeVec = SpElemPositionIdx.SpV* sD(:,IncSpP_GlobalIdx);
+                    SpanVec1 = norm(PrimEdgeVec_Prototype)^(-1)*PrimEdgeVec_Prototype;
+                    SpanVec2 = [...
+                        1*(abs(DualEdgeVec(1))>=max(abs(DualEdgeVec([2 3]))));...
+                        1*(abs(DualEdgeVec(2))>=max(abs(DualEdgeVec([3 1]))));...
+                        1*(abs(DualEdgeVec(3))>=max(abs(DualEdgeVec([1 2]))))...
+                        ];
+                    SpanVec2 = SpanVec2 - dot(SpanVec2,SpanVec1)*SpanVec1;
+                    SpanVec2 = norm(SpanVec2)^(-1)*SpanVec2;
+                    ProjectingPlaneVec = cross(SpanVec1,SpanVec2);
+                    ProjectingPlaneVec = norm(ProjectingPlaneVec)^(-1)*ProjectingPlaneVec;
+                    ProjectedDualEdge  = DualEdgeVec - dot(DualEdgeVec,ProjectingPlaneVec)*ProjectingPlaneVec;
+                    PrimEdgeVec_Actual = ...
+                        (norm(PrimEdgeVec_Prototype)/dot(ProjectedDualEdge,SpanVec2))...
+                        *(dot(ProjectedDualEdge,SpanVec2)*SpanVec1 - dot(ProjectedDualEdge,SpanVec1)*SpanVec2);
+                    PrimEdgeVec_Actual = - PrimEdgeVec_Actual*sG(IncSpS_GlobalIdx,JustDoneNode_GlobalIdx);
+                    Endpoint2_LocalIdx = find(sG_LocalOnBoundary(IncSpS_LocalIdx,:));
+                    Endpoint2_LocalIdx = Endpoint2_LocalIdx(logical(Endpoint2_LocalIdx~=JustDoneNode_LocalIdx));
+                    Endpoint2_GlobalIdx = BoundarySpNIdx(Endpoint2_LocalIdx);
+                    if DoneFlag_Local(Endpoint2_LocalIdx) == false
+                        NodePosPrimDeltaM(:,Endpoint2_GlobalIdx) ...
+                            = PrimEdgeVec_Actual + NodePosPrimDeltaM(:,JustDoneNode_GlobalIdx) ...
+                            -(SpElemPositionIdx.SpN(:,Endpoint2_GlobalIdx)-SpElemPositionIdx.SpN(:,JustDoneNode_GlobalIdx));
+                        Next_JustDoneNodeSet_LocalIdx(size(Next_JustDoneNodeSet_LocalIdx,2)+1) = Endpoint2_LocalIdx;
+                        DoneFlag_Local(Endpoint2_LocalIdx) = true;
+                    end
+                end
+            end
+        end
+    case 1
+        
+end
+for SpNIdx = BoundarySpNIdx(logical(isAlreadyAdjusted(BoundarySpNLogIdx)))
+    if isOnFineGridCorner(SpNIdx) == false
+        NodePosPrimDeltaM(:,SpNIdx) = [0;0;0];
+    end
+end
+isAlreadyAdjusted(BoundarySpNLogIdx) = true;
+
 end
 %%
 % function sD = Subgrid_sD(MeshMeasurements,Num_of_Elem,ElemPer)

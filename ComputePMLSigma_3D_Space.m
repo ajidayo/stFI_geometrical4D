@@ -1,4 +1,5 @@
 function [Sigma] = ComputePMLSigma_3D_Space(cdt,NodePos,sG,sD,SpElemProperties,Num_of_Elem)
+disp('ComputePMLSigma_3D_Space: Evaluating the value of sigma for each element in the PML region.')
 % compute RefSigma.{SpP, SpS}.{OneTwoThree, TwoThreeOne, ThreeOneTwo}
 % For primal reference-faces(dual   reference-edges), weight sigma by relative lengths.
 % For dual   reference-faces(primal reference-edges), weight sigma by relative areas. 

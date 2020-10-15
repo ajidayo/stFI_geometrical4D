@@ -1,6 +1,6 @@
 function [SpElemProperties,STElemProperties,Num_of_Elem,PrimFacePos] = Properties_of_Sp_Elements(sG,sC,sD,SpElemProperties,Num_of_Elem,NodePos)
 global EPSILON
-
+disp('Properties_of_Sp_Elements: Determing Updating Numbers per timestep for each Sp-Element')
 %% UpdNum
 UpdNum_SpV = SpElemProperties.SpV.UpdNum;
 UpdNum_SpP = zeros(Num_of_Elem.SpP,1);
@@ -19,6 +19,7 @@ SpElemProperties.SpP.UpdNum=UpdNum_SpP;
 SpElemProperties.SpS.UpdNum=UpdNum_SpS;
 SpElemProperties.SpN.UpdNum=UpdNum_SpN;
 
+disp('Properties_of_Sp_Elements: Defining reference relations between Sp/ST Elements, ')
 %% FirstSTNIdx, RefSpN
 CurrentSTNIdx=1;
 for SpNIdx=1:Num_of_Elem.SpN
@@ -91,7 +92,9 @@ end
 Num_of_Elem.STV = CurrentSTVIdx;
 
 STElemProperties.STP.TaskIdx = zeros(1,Num_of_Elem.STP);
+
 %% tasktype
+disp('Properties_of_Sp_Elements: Determing Dof-calculating tasks by which each Field-DoF is updated.')
 % First check if SpPs are on dt-Interfaces. Interface SpPs belongs to ST_FI-region.
 % SpPs adjacent to interface-SpPs belongs to ST_FI-region.
 SpElemProperties.SpP.Belong_to_ST_FI = logical(sparse(1,Num_of_Elem.SpP));
@@ -125,13 +128,6 @@ for SpSIdx = find(SpElemProperties.SpS.Belong_to_ST_FI==true)
     end
 end
 
-% SpElemProperties.SpN.Belong_to_ST_FI = logical(sparse(1,Num_of_Elem.SpN));
-% for SpSIdx = find(SpElemProperties.SpS.Belong_to_ST_FI)
-%     for IncSpN = find(sG(SpSIdx,:))
-%         SpElemProperties.SpN.Belong_to_ST_FI(IncSpN) = true;
-%     end
-% end
-
 SpElemProperties.SpV.Belong_to_ST_FI = logical(sparse(1,Num_of_Elem.SpV));
 for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
     for IncSpV = find(sD(:,SpPIdx).')
@@ -139,12 +135,11 @@ for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
     end
 end
 
-%dummy 
-SpElemProperties.SpS.UpdNumCorner = logical(sparse(1,Num_of_Elem.SpS));
-SpElemProperties.SpN.UpdNumCorner = logical(sparse(1,Num_of_Elem.SpN));
-for SpSIdx = find(SpElemProperties.SpS.UpdNumCorner)
-    SpElemProperties.SpN.UpdNumCorner(logical(sG(SpSIdx,:))) = true;
-end
+% SpElemProperties.SpS.UpdNumCorner = logical(sparse(1,Num_of_Elem.SpS));
+% SpElemProperties.SpN.UpdNumCorner = logical(sparse(1,Num_of_Elem.SpN));
+% for SpSIdx = find(SpElemProperties.SpS.UpdNumCorner)
+%     SpElemProperties.SpN.UpdNumCorner(logical(sG(SpSIdx,:))) = true;
+% end
 %% PML
 SpElemProperties.SpS.PML        = false(1,Num_of_Elem.SpS);
 SpElemProperties.SpP.PML        = false(1,Num_of_Elem.SpP);
@@ -208,7 +203,10 @@ for SpSIdx = find(SpElemProperties.SpS.PML==true)
     PMLImagDualSTPIdx = PMLImagDualSTPIdx + SpElemProperties.SpS.UpdNum(SpSIdx)+1;
 end
 
+Num_of_Elem.PMLSpP = size(find(SpElemProperties.SpP.PML==true),2);
+Num_of_Elem.PMLSpS = size(find(SpElemProperties.SpS.PML==true),2);
 
+disp('Properties_of_Sp_Elements: Roughly calculating the position of each primal face.')
 %% position of Primal Faces
 PrimFacePos(Num_of_Elem.SpP).Vec = [0;0;0];
 for SpPIdx = 1:Num_of_Elem.SpP
@@ -218,7 +216,7 @@ for SpPIdx = 1:Num_of_Elem.SpP
     %         PosVec_SpP = PosVec_SpP + NodePos.Prim(SpNIdx).Vec;
     %     end
     %     PrimFacePos(SpPIdx).Vec = PosVec_SpP/size(Nodes,2);
-    Nodes_LogIdx = logical(( logical(sG).'*logical(sC(SpPIdx,:)).' ).');
+    Nodes_LogIdx = logical(logical(sC(SpPIdx,:))*logical(sG));
     PrimFacePos(SpPIdx).Vec = mean([NodePos.Prim(Nodes_LogIdx).Vec],2);
 end
 end

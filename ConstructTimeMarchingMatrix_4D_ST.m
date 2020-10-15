@@ -1,7 +1,8 @@
 function TMM = ConstructTimeMarchingMatrix_4D_ST(D1,D2,sC,Kappa_over_Z,Sigma,Source,SpElemProperties,Task,TaskOrder,Num_of_Elem)
+disp('ConstructTimeMarchingMatrix_4D_ST: Composes the explicit time-marching matrix from each DoF-calculating tasks')
 TMM_Redundant = speye(Num_of_Elem.STP+Num_of_Elem.STSource+Num_of_Elem.PMLImagDualSTP);
 for nth_task = 1:size(TaskOrder,2)
-    if mod(nth_task-1,100) == 0
+    if mod(nth_task-1,10^(-1+round(log10(size(TaskOrder,2)))) ) == 0
         disp(['Processing ', num2str(nth_task),'/',...
             num2str(size(TaskOrder,2)),' th task'])
     end
@@ -132,7 +133,6 @@ end
 %%
 function TMM_Redundant = ...
     SingleTask_PML(PML_TaskInfo,sC,Kappa_over_Z,Sigma,SpElemProperties,Num_of_Elem,TMM_Redundant)
-disp('SingleTask_PML:Processing')
 
 TimeSection_tgt   = PML_TaskInfo.TimeSection_tgt;
 
@@ -316,7 +316,6 @@ TMM_Onestep(PMLDualDoF_Idxs,PMLDualDoF_Idxs) = ...
     TMM_Onestep(PMLDualDoF_Idxs,PMLDualDoF_Idxs) +spdiags(ConservedPMLDualDoF_ConstiF2G,0,Num_of_Elem.PMLImagDualSTP,Num_of_Elem.PMLImagDualSTP);
 TMM_Redundant = TMM_Onestep*TMM_Redundant;
 
-disp('SingleTask_PML:End Processing')
 
 end
 

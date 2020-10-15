@@ -1,4 +1,5 @@
 function [kappa,FaceArea] = ComputeKappa_4D_ST(cdt,sG,sC,sD,D0,D1,D2,D3,NodePos,SpElemProperties,STElemProperties,Num_of_Elem)
+disp('ComputeKappa_4D_ST: Computing the value of kappa for each ST-face pair in duality relations.')
 global SpDIM
 kappa = zeros(Num_of_Elem.STP,1);
 
@@ -13,9 +14,9 @@ DeltaSTNPos   = sparse(SpDIM, Num_of_Elem.STN);
 end
 %%
 function [kappa,FaceArea] = ComputeKappa_for_STFI_SpPs_and_SpSs(kappa,FaceArea,DeltaSTNPos,cdt,sG,sC,sD,D0,D1,D2,D3,NodePos,SpElemProperties,STElemProperties)
-
+disp('ComputeKappa_for_STFI_SpPs_and_SpSs: Computing Kappa For STFI edges')
 for SpSIdx = find(SpElemProperties.SpS.UpdNumBoundary)
-    if any(SpElemProperties.SpN.UpdNumCorner(logical(sG(SpSIdx,:))))
+    if any(SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion(logical(sG(SpSIdx,:))))
         continue;
     elseif SpElemProperties.SpS.PEC(SpSIdx) == true
         STPIdx_RefferingSpS = ...
@@ -51,8 +52,8 @@ for SpPIdx = find(SpElemProperties.SpP.UpdNumBoundary) % compute Delta for SpSs 
             end
         end
         if norm(DeltaSTN_Fetch) == 0
-            disp('ComputeKappa_4D_ST:norm(DeltaSTN_Fetch) == 0')
-            pause;
+            warning('ComputeKappa_4D_ST:norm(DeltaSTN_Fetch) == 0')
+           % pause;
         end
         for SpNIdx = SpNIdx_DefPrimFace
             STNIdx = SpElemProperties.SpN.FirstSTNIdx(SpNIdx)+Time;
@@ -61,14 +62,14 @@ for SpPIdx = find(SpElemProperties.SpP.UpdNumBoundary) % compute Delta for SpSs 
     end
 end
 
-for SpNIdx = find(SpElemProperties.SpN.UpdNumCorner)
+for SpNIdx = find(SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion)
     UpdNum_tgt = SpElemProperties.SpN.UpdNum(SpNIdx);
     for Time = 1:UpdNum_tgt-1
         STNIdx_tgt = SpElemProperties.SpN.FirstSTNIdx(SpNIdx)+Time;
         DeltaSTNPos(:,STNIdx_tgt) = [0;0;0];
         AdjSpNIdx_List = find(logical(sG(:,SpNIdx).')*logical(sG));
         AdjSpNIdx_List = AdjSpNIdx_List(logical(SpElemProperties.SpN.UpdNum(AdjSpNIdx_List)==UpdNum_tgt));
-        AdjSpN_NotOnCorner_List =  AdjSpNIdx_List(~logical(SpElemProperties.SpN.UpdNumCorner(AdjSpNIdx_List)));
+        AdjSpN_NotOnCorner_List =  AdjSpNIdx_List(~logical(SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion(AdjSpNIdx_List)));
         if size(AdjSpN_NotOnCorner_List,2) > 0
             for AdjSpN_NotOnCorner_Idx = AdjSpN_NotOnCorner_List
                 STNIdx_Fetch = SpElemProperties.SpN.FirstSTNIdx(AdjSpN_NotOnCorner_Idx)+Time;
@@ -76,7 +77,7 @@ for SpNIdx = find(SpElemProperties.SpN.UpdNumCorner)
             end
         else
             AdjAdjSpN_List = find(logical(sG(:,SpNIdx).')*logical(sG)*logical(sG.')*logical(sG));
-            for AdjAdjSpN_NotOnCorner_Idx = unique(AdjAdjSpN_List(~logical(SpElemProperties.SpN.UpdNumCorner(AdjAdjSpN_List))))
+            for AdjAdjSpN_NotOnCorner_Idx = unique(AdjAdjSpN_List(~logical(SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion(AdjAdjSpN_List))))
                 STNIdx_Fetch = SpElemProperties.SpN.FirstSTNIdx(AdjAdjSpN_NotOnCorner_Idx)+Time;
                 DeltaSTNPos(:,STNIdx_tgt) = DeltaSTNPos(:,STNIdx_tgt) + DeltaSTNPos(:,STNIdx_Fetch);
             end
@@ -85,7 +86,7 @@ for SpNIdx = find(SpElemProperties.SpN.UpdNumCorner)
 end
 
 for SpSIdx = find(SpElemProperties.SpS.UpdNumBoundary)
-    if ~any(SpElemProperties.SpN.UpdNumCorner(logical(sG(SpSIdx,:))))
+    if ~any(SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion(logical(sG(SpSIdx,:))))
         continue;
     end  
     STPIdxList_RefferingSpS = ...
@@ -109,6 +110,7 @@ for SpSIdx = STFISpSList(~SpElemProperties.SpS.UpdNumBoundary(logical(SpElemProp
         ComputeKappa_for_SingleSTFISpS(SpSIdx,cdt,sG,sC,sD,DeltaSTNPos,NodePos,SpElemProperties);
 end
 
+disp('ComputeKappa_for_STFI_SpPs_and_SpSs: Computing Kappa For STFI faces')
 for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
     if SpElemProperties.SpP.ElecWall(SpPIdx) == true
         STPIdx_RefferingSpP = ...
@@ -132,6 +134,7 @@ if norm(LocalBasis1)<EPSILON
     disp(SpSIdx)
 end
 SpS_Direc   = [NodePos.Prim(logical(sG(SpSIdx,:))).Vec]*sG(SpSIdx,logical(sG(SpSIdx,:))).';
+SpS_Direc   = norm(SpS_Direc).^(-1)*SpS_Direc;
 LocalBasis2 = SpS_Direc - dot(SpS_Direc,LocalBasis1)*LocalBasis1;
 LocalBasis2 = LocalBasis2/norm(LocalBasis2);
 LocalBasis3 = cross(LocalBasis1,LocalBasis2);
@@ -419,6 +422,7 @@ kappa_Local(1+SpElemProperties.SpP.UpdNum(SpPIdx)) = kappa_Local(1);
 end
 %%
 function [kappa,FaceAreaPrim] = ComputeKappa_for_NonSTFI_SpPs(kappa,FaceAreaPrim,cdt,sG,sC,sD,NodePos,SpElemProperties)
+disp('ComputeKappa_for_NonSTFI_SpPs: Computing kappa for SpFI faces')
 for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI==false)
     switch SpElemProperties.SpP.ElecWall(SpPIdx)
         case true
@@ -447,6 +451,7 @@ for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI==false)
 end
 end
 function [kappa,FaceAreaDual] = ComputeKappa_for_NonSTFI_SpSs(kappa,FaceAreaDual,cdt,sG,sC,sD,NodePos,SpElemProperties)
+disp('ComputeKappa_for_NonSTFI_SpSs: Computing kappa for SpFI edges')
 for SpSIdx = find(SpElemProperties.SpS.Belong_to_ST_FI==false)
     switch SpElemProperties.SpS.PEC(SpSIdx)
         case true

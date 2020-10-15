@@ -1,4 +1,6 @@
 function DoFs_FacesThenEdges = TimeMarch(Num_of_Steps,Time,cdt,TMM_Fields,TMM_Sources,DoFs_FacesThenEdges,Source)
+disp(['TimeMarch: Updating the Field DoFs from ct = ',num2str(Time),' to ct = ', num2str(Time+cdt*Num_of_Steps),...
+    ' with cdt = ',num2str(cdt),' in coarse grids.'])
 Sum = 0;
 for SourceIdx = 1:size(Source,2)
     Sum = Sum + Source(SourceIdx).UpdNum;

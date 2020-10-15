@@ -1,4 +1,5 @@
 function [D0,D1,D2,D3] = ComputeST_Mesh(sG,sC,sD,SpElemProperties,Num_of_Elem)
+disp('ComputeST_Mesh: Constructing ST-Mesh')
 Num_of_Elem.STV     = sum(SpElemProperties.SpV.UpdNum) + Num_of_Elem.SpV;
 Num_of_Elem.STOmega = sum(SpElemProperties.SpV.UpdNum) + Num_of_Elem.SpV + sum(SpElemProperties.SpP.UpdNum) + Num_of_Elem.SpP;
 Num_of_Elem.STS     = sum(SpElemProperties.SpS.UpdNum) + Num_of_Elem.SpS + sum(SpElemProperties.SpN.UpdNum) + Num_of_Elem.SpN;
@@ -12,9 +13,6 @@ if size(find(SpElemProperties.SpS.Belong_to_ST_FI),2)==0
     return
 end
 
-%%
-
-%SpElemProperties.SpV.Belong_to_ST_FI = true(1,Num_of_Elem.SpV);
 %% D0
 for STFISpVIdx = find(SpElemProperties.SpV.Belong_to_ST_FI) 
     for SpPIdx = find(sD(STFISpVIdx,:))

@@ -22,7 +22,7 @@ switch SelectPreset
     case 2
         RefMeshPresetType = 'FDTDWithSubgrid';
         SubgridFineness = 2;
-        SubgridUpdateNum = 1;
+        SubgridUpdateNum = 2;
         
         MeshMeasurements.XCoord = 30;
         MeshMeasurements.YCoord = 10;

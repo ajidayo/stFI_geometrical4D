@@ -1,9 +1,16 @@
-function Source = SourceFDTD(MeshMeasurements,SpElemProperties,ElemPer,sC)
+function Source = GenerateSource(MeshMeasurements,SpElemProperties,ElemPer,sC)
 global SourcePeriod
 SourcePeriod = 20;
-
-disp("Waveform: Sinusoidal")
-Lightspeed = 1;
+WaveformPreset = 1
+switch WaveformPreset
+    case 1
+        disp('GenerateSource: Waveform - Sinusoidal')
+        WaveformFunctionHandle = @sinewave;
+    case 2
+        disp('GenerateSource: Waveform - Constantly Zero')
+        WaveformFunctionHandle = @zerowave;
+end
+Lightspeed = 1
 wavelength = Lightspeed/(1/SourcePeriod);
 disp(['Wavelength/meshsize = ', num2str(wavelength/max([MeshMeasurements.dxCoarse MeshMeasurements.dyCoarse MeshMeasurements.dzCoarse]) ) ])
 
@@ -38,8 +45,7 @@ for SourceIdx = 1:size(SourceSpSIdx,2)
     SpSIdx = SourceSpSIdx(SourceIdx);
     Source(SourceIdx).UpdNum                    = SpElemProperties.SpS.UpdNum(SpSIdx);
     Source(SourceIdx).DualFace_tgt              = SpSIdx;
-    Source(SourceIdx).WaveformFunctionHandle    = @sinewave;
-    % Source(SourceIdx).WaveformFunctionHandle    = @zerowave;
+    Source(SourceIdx).WaveformFunctionHandle    = WaveformFunctionHandle;
     Source(SourceIdx).WaveformSign              = sC(LoopCoilSpPIdx(SourceIdx),SpSIdx);
     Source(SourceIdx).Area_TargetDualFace       = 1;
     Source(SourceIdx).FirstST_SourceIdx         = FirstST_SourceIdx;
