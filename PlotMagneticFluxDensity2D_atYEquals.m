@@ -73,18 +73,18 @@ xa = gca;
 scale = 20;
 quiver(VecPosX,VecPosZ,B_Vol_X,B_Vol_Z,scale)
 xlabel('x','FontSize',30)
-ylabel('y','FontSize',30)
-zlabel('z','FontSize',30)
+ylabel('z','FontSize',30)
+% zlabel('z','FontSize',30)
 xlim([0 XSize*dx])
-ylim([0 YSize*dy])
-zlim([0 ZSize*dz])
+% ylim([0 YSize*dy])
+ylim([0 ZSize*dz])
 xticks([0 dx*XSize/4 dx*XSize/2 dx*XSize*3/4 dx*XSize])
-yticks([0 dy*YSize/4 dy*YSize/2 dy*YSize*3/4 dy*YSize])
-zticks([0 dz*ZSize/4 dz*ZSize/2 dz*ZSize*3/4 dz*ZSize])
+% yticks([0 dy*YSize/4 dy*YSize/2 dy*YSize*3/4 dy*YSize])
+yticks([0 dz*ZSize/4 dz*ZSize/2 dz*ZSize*3/4 dz*ZSize])
 xa.FontSize = 20;
 xticks([0 dx*XSize/4 dx*XSize/2 dx*XSize*3/4 dx*XSize])
-yticks([0 dy*YSize/4 dy*YSize/2 dy*YSize*3/4 dy*YSize])
-zticks([0 dz*ZSize/4 dz*ZSize/2 dz*ZSize*3/4 dz*ZSize])
-pbaspect([1 1 1])
+%yticks([0 dy*YSize/4 dy*YSize/2 dy*YSize*3/4 dy*YSize])
+yticks([0 dz*ZSize/4 dz*ZSize/2 dz*ZSize*3/4 dz*ZSize])
+pbaspect([XSize/XSize ZSize/XSize YSize/XSize])
 
 end

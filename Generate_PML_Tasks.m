@@ -1,5 +1,5 @@
-function [Task,TaskDepGraph,SpElemProperties,STElemProperties,Map_SpElem_to_FirstGlobTask] ...
-    = Generate_PML_Tasks(sC,sD,SpElemProperties,STElemProperties,Num_of_Elem,Task,TaskDepGraph,Map_SpElem_to_FirstGlobTask)
+function [Task,TaskDepGraph,SpElemProperties,STElemProperties] ...
+    = Generate_PML_Tasks(sC,sD,SpElemProperties,STElemProperties,Num_of_Elem,Task,TaskDepGraph)
 
 if size(find(SpElemProperties.SpP.PML),2)==0
     return

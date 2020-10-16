@@ -341,7 +341,7 @@ if YIdx == YSize+1 && ZIdx < ZSize+1
             = PosIdxOffset(2);
         SpSFineness_Local(Local_XSpSIdx) = Fineness;
         return;
-    elseif FRatio_YMinus<=1 && FRatio_XYMinus>1
+    elseif FRatio_YMinus<=1 && FRatio_YZMinus>1
         Local_XSpSNum = 0;
         for LocalLocalXIdx = 1:Fineness
             Local_XSpSIdx = Local_XSpSNum+(1:FRatio_YZMinus);
@@ -1274,9 +1274,6 @@ end
 % end
 
 PosIdxOffset(1:3,1) = [XIdx-1;YIdx-1;ZIdx-1];
-if XIdx == 23 && YIdx == 11 && ZIdx == 1
-    disp('LocallyCalcSpNPositionIdx')
-end
 if     XIdx == XSize+1 && YIdx <  YSize+1 && ZIdx <  ZSize+1
     if FRatio_ZXMinus <=1 && FRatio_XYMinus <=1
         Local_SpNIdx = 1:Fineness^2;

@@ -87,7 +87,7 @@ xa.FontSize = 20;
 xticks([0 dx*XSize/4 dx*XSize/2 dx*XSize*3/4 dx*XSize])
 yticks([0 dy*YSize/4 dy*YSize/2 dy*YSize*3/4 dy*YSize])
 zticks([0 dz*ZSize/4 dz*ZSize/2 dz*ZSize*3/4 dz*ZSize])
-pbaspect([1 1 1])
+pbaspect([XSize/XSize YSize/XSize ZSize/XSize])
 %color = colorbar('southoutside');
 color = colorbar;
 color.Label.String = 'B';

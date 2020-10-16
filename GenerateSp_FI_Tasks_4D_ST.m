@@ -1,5 +1,5 @@
-function [Task,TaskDepGraph,SpElemProperties,STElemProperties,Map_SpElem_to_FirstGlobTask] ...
-    = GenerateSp_FI_Tasks_4D_ST(sC,sD,SpElemProperties,STElemProperties,Num_of_Elem,Task,TaskDepGraph,Map_SpElem_to_FirstGlobTask)
+function [Task,TaskDepGraph,SpElemProperties,STElemProperties] ...
+    = GenerateSp_FI_Tasks_4D_ST(sC,sD,SpElemProperties,STElemProperties,Num_of_Elem,Task,TaskDepGraph)
 sDPattern_PartiallyOmitted=logical(sD);
 
 for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)

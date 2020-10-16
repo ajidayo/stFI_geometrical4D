@@ -1,13 +1,6 @@
-% DONE 1 Properties_of_Sp_Elements, PML part
-% DONE 2 RefMesh_Subgrid, Corner
-% DONE 3 RefMesh_Subgrid, Boundary Conditions
-% DONE 4 RefMesh_Subgrid, Given area and lengths
-% DONE 5 Kappa, NonOrthogonal
-% DONE 6 Kappa, Corner
-% DONE 7 Source
-% DONE 8 Plotfunctions
-
 clear;
+clear AdjustPrimNodePos
+
 global SpDIM EPSILON
 SpDIM   = 3;
 EPSILON = 10^(-7);
@@ -23,20 +16,17 @@ RefImpedance_SpV = ones(Num_of_Elem.SpV,1);
 
 Task                        = struct;
 TaskDepGraph                = digraph;
-Map_SpElem_to_FirstGlobTask = struct;
 
 [Task,STElemProperties] ...
     = Generate_InitialCondition_Tasks(Task,Num_of_Elem,SpElemProperties,STElemProperties);
 [Task,STElemProperties] ...
     = Generate_BoundaryCondition_Tasks(Task,SpElemProperties,STElemProperties);
-[Task,TaskDepGraph,SpElemProperties,STElemProperties,Map_SpElem_to_FirstGlobTask] ...
-    = Generate_PML_Tasks(sC,sD,SpElemProperties,STElemProperties,Num_of_Elem,Task,TaskDepGraph,Map_SpElem_to_FirstGlobTask);
-[Task,TaskDepGraph,SpElemProperties,STElemProperties,Map_SpElem_to_FirstGlobTask] ...
-    = GenerateST_FI_Tasks_4D_ST(SpElemProperties,STElemProperties,Task,TaskDepGraph,Map_SpElem_to_FirstGlobTask);
-[Task,TaskDepGraph,SpElemProperties,STElemProperties,Map_SpElem_to_FirstGlobTask] ...
-    = GenerateSp_FI_Tasks_4D_ST(sC,sD,SpElemProperties,STElemProperties,Num_of_Elem,Task,TaskDepGraph,Map_SpElem_to_FirstGlobTask);
-
-clearvars Map_SpElem_to_FirstGlobTask
+[Task,TaskDepGraph,SpElemProperties,STElemProperties] ...
+    = Generate_PML_Tasks(sC,sD,SpElemProperties,STElemProperties,Num_of_Elem,Task,TaskDepGraph);
+[Task,TaskDepGraph,SpElemProperties,STElemProperties] ...
+    = GenerateST_FI_Tasks_4D_ST(SpElemProperties,STElemProperties,Task,TaskDepGraph);
+[Task,TaskDepGraph,SpElemProperties,STElemProperties] ...
+    = GenerateSp_FI_Tasks_4D_ST(sC,sD,SpElemProperties,STElemProperties,Num_of_Elem,Task,TaskDepGraph);
 
 TaskOrder = SortTasks(Task,TaskDepGraph,STElemProperties,D1,D2);
 
@@ -72,7 +62,7 @@ Time = 0;
 FieldDoFs = TimeMarch(Num_of_Steps,Time,cdt,TMM_Fields,TMM_Sources,FieldDoFs,Source);
 
 ZConst = round(0.5*MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse);
-PlotMagneticFluxDensity_ZComponent_atZEquals(ZConst,FieldDoFs,FaceArea,PrimFacePos,MeshMeasurements)
 YConst = round(0.5*MeshMeasurements.YCoord/MeshMeasurements.dyCoarse);
+PlotMagneticFluxDensity_ZComponent_atZEquals(ZConst,FieldDoFs,FaceArea,PrimFacePos,MeshMeasurements)
 PlotMagneticFluxDensity2D_atYEquals(FieldDoFs,YConst,FaceArea,PrimFacePos,MeshMeasurements)
 PlotMagneticFluxDensity3D(FieldDoFs,FaceArea,PrimFacePos,MeshMeasurements)

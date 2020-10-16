@@ -208,15 +208,13 @@ Num_of_Elem.PMLSpS = size(find(SpElemProperties.SpS.PML==true),2);
 
 disp('Properties_of_Sp_Elements: Roughly calculating the position of each primal face.')
 %% position of Primal Faces
+NodePos_Prim_Matrix = zeros(3,Num_of_Elem.SpN) ;
+for SpNIdx = Num_of_Elem.SpN
+    NodePos_Prim_Matrix(:,SpNIdx) = NodePos.Prim(SpNIdx).Vec;
+end
 PrimFacePos(Num_of_Elem.SpP).Vec = [0;0;0];
 for SpPIdx = 1:Num_of_Elem.SpP
-    %     Nodes = find(( logical(sG).'*logical(sC(SpPIdx,:)).' ).');
-    %     PosVec_SpP = [0;0;0];
-    %     for SpNIdx = Nodes
-    %         PosVec_SpP = PosVec_SpP + NodePos.Prim(SpNIdx).Vec;
-    %     end
-    %     PrimFacePos(SpPIdx).Vec = PosVec_SpP/size(Nodes,2);
     Nodes_LogIdx = logical(logical(sC(SpPIdx,:))*logical(sG));
-    PrimFacePos(SpPIdx).Vec = mean([NodePos.Prim(Nodes_LogIdx).Vec],2);
+    PrimFacePos(SpPIdx).Vec = mean(NodePos_Prim_Matrix(:,Nodes_LogIdx),2);
 end
 end

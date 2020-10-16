@@ -1,7 +1,7 @@
 function Source = GenerateSource(MeshMeasurements,SpElemProperties,ElemPer,sC)
 global SourcePeriod
 SourcePeriod = 20;
-WaveformPreset = 1
+WaveformPreset = 1;
 switch WaveformPreset
     case 1
         disp('GenerateSource: Waveform - Sinusoidal')

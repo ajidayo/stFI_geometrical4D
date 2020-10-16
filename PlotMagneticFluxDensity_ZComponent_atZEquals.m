@@ -34,7 +34,7 @@ xa.FontSize = 20;
 xticklabels([0 XSize/4 XSize/2 XSize*3/4 XSize])
 yticklabels([0 YSize/4 YSize/2 YSize*3/4 YSize])
 zlabel(['Bz, at Z=', num2str(ZConst),' Calculated by New Method'],'FontSize',15)
-pbaspect([1 1 1])
+pbaspect([XSize/XSize YSize/XSize 1])
 %color = colorbar('southoutside');
 color = colorbar;
 color.Label.String = 'B_{z}';

@@ -86,7 +86,8 @@ for SpNIdx = find(SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion)
 end
 
 for SpSIdx = find(SpElemProperties.SpS.UpdNumBoundary)
-    if ~any(SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion(logical(sG(SpSIdx,:))))
+    if ~any(SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion(logical(sG(SpSIdx,:)))) ...
+            || SpElemProperties.SpS.PEC(SpSIdx) == true
         continue;
     end  
     STPIdxList_RefferingSpS = ...

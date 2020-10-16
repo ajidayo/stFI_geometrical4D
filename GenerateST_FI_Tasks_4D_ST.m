@@ -1,5 +1,5 @@
-function [Task,TaskDepGraph,SpElemProperties,STElemProperties,Map_SpElem_to_FirstGlobTask] ...
-    = GenerateST_FI_Tasks_4D_ST(SpElemProperties,STElemProperties,Task,TaskDepGraph,Map_SpElem_to_FirstGlobTask)
+function [Task,TaskDepGraph,SpElemProperties,STElemProperties] ...
+    = GenerateST_FI_Tasks_4D_ST(SpElemProperties,STElemProperties,Task,TaskDepGraph)
 
 
 switch size(fieldnames(Task(size(Task,2))),1)

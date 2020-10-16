@@ -25,14 +25,14 @@ switch SelectPreset
         SubgridUpdateNum = 2;
         
         MeshMeasurements.XCoord = 30;
-        MeshMeasurements.YCoord = 10;
-        MeshMeasurements.ZCoord = 10;
-        MeshMeasurements.XFineFromCoord = 18;
-        MeshMeasurements.YFineFromCoord = 0;
-        MeshMeasurements.ZFineFromCoord = 0;
-        MeshMeasurements.XFineToCoord   = 22;
-        MeshMeasurements.YFineToCoord   = 10;
-        MeshMeasurements.ZFineToCoord   = 10;
+        MeshMeasurements.YCoord = 30;
+        MeshMeasurements.ZCoord = 30;
+        MeshMeasurements.XFineFromCoord = 12;
+        MeshMeasurements.YFineFromCoord = 12;
+        MeshMeasurements.ZFineFromCoord = 12;
+        MeshMeasurements.XFineToCoord   = 20;
+        MeshMeasurements.YFineToCoord   = 20;
+        MeshMeasurements.ZFineToCoord   = 20;
         MeshMeasurements.dxCoarse = 1;
         MeshMeasurements.dyCoarse = 1;
         MeshMeasurements.dzCoarse = 1;
