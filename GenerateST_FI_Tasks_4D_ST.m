@@ -1,13 +1,29 @@
 function [Task,TaskDepGraph,SpElemProperties,STElemProperties] ...
     = GenerateST_FI_Tasks_4D_ST(SpElemProperties,STElemProperties,Task,TaskDepGraph)
 
-
 switch size(fieldnames(Task(size(Task,2))),1)
     case 0
         GlobalTaskIdx = 0;
     otherwise
         GlobalTaskIdx = size(Task,2);
 end
+
+% sDPattern_Modified = logical(sD);
+% sDPattern_Modified(:,~logical(SpElemProperties.SpP.Belong_to_ST_FI)) = false;
+% for SpVIdx = find(SpElemProperties.SpV.IncToSTFISpP)
+%     for IncSpPIdx = find(sD(SpVIdx,:))
+%         if SpElemProperties.SpV.UpdNum(SpVIdx) ~= SpElemProperties.SpP.UpdNum(IncSpPIdx)
+%             sD(SpVIdx,IncSpPIdx) = false;
+%         end
+%     end
+% end
+% Graph_SpPviaSpV_SomeGraphEdgeExcluded = graph(sDPattern_Modified.'*sDPattern_Modified,'omitselfloops');
+% [SubgraphBin_SpP,SpPNumInSubgraph] = conncomp(Graph_SpPviaSpV_SomeGraphEdgeExcluded);
+% for SubgraphIdx = size(SpPNumInSubgraph,2)
+%     SpPIdxListInSubgraph = find(SubgraphBin_SpP==SubgraphIdx);
+%     
+% end
+
 for SpSIdx = find(SpElemProperties.SpS.Belong_to_ST_FI)
     if SpElemProperties.SpS.PEC(SpSIdx)==true
         continue;

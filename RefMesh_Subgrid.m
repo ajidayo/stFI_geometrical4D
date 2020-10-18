@@ -7,10 +7,10 @@ ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 disp('RefMesh_Subgrid: Counting the number of elements')
 ElemPer = CountElemPerCoarseGrid_Row_Plane_TotalNum(MeshMeasurements);
 
-Num_of_Elem.SpV = VolNum;
-Num_of_Elem.SpP = YZFaceNum + ZXFaceNum + XYFaceNum;
-Num_of_Elem.SpS = XEdgeNum  + YEdgeNum  + ZEdgeNum;
-Num_of_Elem.SpN = NodeNum;
+Num_of_Elem.SpV = ElemPer.VolNum;
+Num_of_Elem.SpP = ElemPer.YZFaceNum + ElemPer.ZXFaceNum + ElemPer.XYFaceNum;
+Num_of_Elem.SpS = ElemPer.XEdgeNum  + ElemPer.YEdgeNum  + ElemPer.ZEdgeNum;
+Num_of_Elem.SpN = ElemPer.NodeNum;
 
 [SpElemPositionIdx,ElemFineness] = CalcSpElemPositionIdx(MeshMeasurements,ElemPer,Num_of_Elem);
 
@@ -36,7 +36,7 @@ for SpNIdx = 1:Num_of_Elem.SpN
     if size(find(any([logical(abs(SpDiscreteWidth_Coarse.*SpElemPositionIdx.SpN(:,SpNIdx)-SubgridsStartsFrom)<EPSILON);...
         logical(abs(SpDiscreteWidth_Coarse.*SpElemPositionIdx.SpN(:,SpNIdx)-SubgridsEndsAt)<EPSILON)],2)),1)...
         >=2
-    disp(['RefMesh_Subgrid: SpNIdx = ', num2str(SpNIdx),' is judged as being on the edge/corner of the fine grid region'])
+   % disp(['RefMesh_Subgrid: SpNIdx = ', num2str(SpNIdx),' is judged as being on the edge/corner of the fine grid region'])
     NonZeroEntityNum = NonZeroEntityNum + 1;
     isOnFineGridCorner_NoneZeroRow(NonZeroEntityNum) = 1;
     isOnFineGridCorner_NoneZeroCol(NonZeroEntityNum) = SpNIdx;
@@ -59,7 +59,7 @@ else
     SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion = sparse(false(1,Num_of_Elem.SpN));
 end
 disp(['RefMesh_Subgrid :Total number of primal reference nodes on the edge/corner of the fine grid region - ', ...
-    num2str(size(find(isOnFineGridCorner)),2)])
+    num2str(size(find(isOnFineGridCorner),2))])
 
 
 disp('RefMesh_Subgrid:Calculating NodePositions')
@@ -981,6 +981,8 @@ end
 ElemPer.VolPerCoarseGrid    = VolPerCoarseGrid;
 ElemPer.VolPerXRow          = VolPerXRow;
 ElemPer.VolPerXYPlane       = VolPerXYPlane;
+ElemPer.VolNum              = VolNum;
+
 ElemPer.YZFacePerCoarseGrid = YZFacePerCoarseGrid;
 ElemPer.YZFacePerYRow       = YZFacePerYRow;
 ElemPer.YZFacePerYZPlane    = YZFacePerYZPlane;
@@ -1006,9 +1008,11 @@ ElemPer.ZEdgePerCoarseGrid  = ZEdgePerCoarseGrid;
 ElemPer.ZEdgePerXRow        = ZEdgePerXRow;
 ElemPer.ZEdgePerXYPlane     = ZEdgePerXYPlane;
 ElemPer.ZEdgeNum            = ZEdgeNum;
+
 ElemPer.NodePerCoarseGrid   = NodePerCoarseGrid;
 ElemPer.NodePerXRow         = NodePerXRow;
 ElemPer.NodePerXYPlane      = NodePerXYPlane;
+ElemPer.NodeNum             = NodeNum;
 
 
 end

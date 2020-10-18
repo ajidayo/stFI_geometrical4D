@@ -14,6 +14,7 @@ DeltaSTNPos   = sparse(SpDIM, Num_of_Elem.STN);
 end
 %%
 function [kappa,FaceArea] = ComputeKappa_for_STFI_SpPs_and_SpSs(kappa,FaceArea,DeltaSTNPos,cdt,sG,sC,sD,D0,D1,D2,D3,NodePos,SpElemProperties,STElemProperties)
+global EPSILON
 disp('ComputeKappa_for_STFI_SpPs_and_SpSs: Computing Kappa For STFI edges')
 for SpSIdx = find(SpElemProperties.SpS.UpdNumBoundary)
     if any(SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion(logical(sG(SpSIdx,:))))
@@ -33,8 +34,31 @@ for SpSIdx = find(SpElemProperties.SpS.UpdNumBoundary)
         SpElemProperties.SpS.FirstSTPIdx(SpSIdx):SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+SpElemProperties.SpS.UpdNum(SpSIdx);
     kappa(STPIdxList_RefferingSpS) = -1*Area_DualSTP/Area_PrimSTP;
     FaceArea.Dual(SpSIdx) = Area_DualSTP;
-    DeltaSTNPos = ...
-        Compute_DeltaSTNPos_for_SingleBoundaryEdge(SpSIdx,DeltaSTNPos,NodePos,PrimEdgeTgtLeng,DualFaceTgtArea,sG,sC,D2,D3,SpElemProperties,STElemProperties,cdt);
+    
+    %     DeltaSTNPos = ...
+    %         Compute_DeltaSTNPos_for_SingleBoundaryEdge(SpSIdx,DeltaSTNPos,NodePos,PrimEdgeTgtLeng,DualFaceTgtArea,sG,sC,D2,D3,SpElemProperties,STElemProperties,cdt);
+    
+    TerminalNodes = find(sG(SpSIdx,:));
+    STNIdxList_RefSpNIsTermNode1 = SpElemProperties.SpN.FirstSTNIdx(TerminalNodes(1))...
+        :SpElemProperties.SpN.FirstSTNIdx(TerminalNodes(1))+SpElemProperties.SpN.UpdNum(TerminalNodes(1));
+    STNIdxList_RefSpNIsTermNode2 = SpElemProperties.SpN.FirstSTNIdx(TerminalNodes(2))...
+        :SpElemProperties.SpN.FirstSTNIdx(TerminalNodes(2))+SpElemProperties.SpN.UpdNum(TerminalNodes(2));
+    if sum(DeltaSTNPos(:, STNIdxList_RefSpNIsTermNode1).^(2),'all')<EPSILON || sum(DeltaSTNPos(:, STNIdxList_RefSpNIsTermNode2).^(2),'all')<EPSILON
+        disp('ComputingDeltaSTNPos')
+        DeltaSTNPos = ...
+            Compute_DeltaSTNPos_for_SingleBoundaryEdge(SpSIdx,DeltaSTNPos,NodePos,PrimEdgeTgtLeng,DualFaceTgtArea,sG,sC,D2,D3,SpElemProperties,STElemProperties,cdt);
+        sGPatternOnUpdBoundary_CornerNodeExcluded = logical(sG);
+        sGPatternOnUpdBoundary_CornerNodeExcluded(~logical(SpElemProperties.SpS.UpdNumBoundary),:) = false;
+        sGPatternOnUpdBoundary_CornerNodeExcluded(:,logical(SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion)) = false;
+        Graph_SpNviaSpS_SomeSpSExcluded = graph(sGPatternOnUpdBoundary_CornerNodeExcluded.'*sGPatternOnUpdBoundary_CornerNodeExcluded,'omitselfloops');
+        SubgraphBin_SpN = conncomp(Graph_SpNviaSpS_SomeSpSExcluded);
+        clearvars Graph_SpNviaSpS_SomeSpSExcluded
+        for SpNInSameSubgraph = find(SubgraphBin_SpN == SubgraphBin_SpN(TerminalNodes(1)))
+            STNIdxList_RefSpNIsSpNInSameSubgraph = SpElemProperties.SpN.FirstSTNIdx(SpNInSameSubgraph)...
+                :SpElemProperties.SpN.FirstSTNIdx(SpNInSameSubgraph)+SpElemProperties.SpN.UpdNum(SpNInSameSubgraph);
+            DeltaSTNPos(:,STNIdxList_RefSpNIsSpNInSameSubgraph) = DeltaSTNPos(:,STNIdxList_RefSpNIsTermNode1);
+        end
+    end
 end
 
 for SpPIdx = find(SpElemProperties.SpP.UpdNumBoundary) % compute Delta for SpSs on outer boundaries

@@ -36,6 +36,7 @@ disp(['cdt = ', num2str(cdt)])
 [kappa,FaceArea] = ComputeKappa_4D_ST(cdt,sG,sC,sD,D0,D1,D2,D3,NodePos,SpElemProperties,STElemProperties,Num_of_Elem);
 
 Z = ComputeImpedance_for_EachSTPs(RefImpedance_SpV,sC,sD,SpElemProperties,Num_of_Elem);
+% Z = ComputeZ_3D_Space(@func_Impedance,NodePos,sG,sD,SpElemProperties)
 Kappa_over_Z = kappa./Z;
 
 [Sigma] = ComputePMLSigma_3D_Space(cdt,NodePos,sG,sD,SpElemProperties,Num_of_Elem);
@@ -56,7 +57,7 @@ TMM                         = ConstructTimeMarchingMatrix_4D_ST(D1,D2,sC,Kappa_o
 FieldDoFs  = zeros(Num_of_Elem.SpP+Num_of_Elem.SpS+Num_of_Elem.PMLSpP+Num_of_Elem.PMLSpS,1);
 % FieldDoFs  = rand(Num_of_Elem.SpP+Num_of_Elem.SpS+Num_of_Elem.PMLSpP+Num_of_Elem.PMLSpS,1);
 
-Num_of_Steps = 10000;
+Num_of_Steps = 1000;
 disp(['Number of Steps = ', num2str(Num_of_Steps)])
 Time = 0;
 FieldDoFs = TimeMarch(Num_of_Steps,Time,cdt,TMM_Fields,TMM_Sources,FieldDoFs,Source);

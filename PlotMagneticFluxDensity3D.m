@@ -1,4 +1,5 @@
 function PlotMagneticFluxDensity3D(FieldDoFs,FaceArea,PrimFacePos,MeshMeasurements)
+
 global SpDIM EPSILON
 
 dx = MeshMeasurements.dxCoarse;

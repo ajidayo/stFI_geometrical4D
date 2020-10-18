@@ -73,6 +73,7 @@ ElemPer.XYFacePerXRow       = (XSize)*ones(YSize,ZSize+1);
 ElemPer.XYFacePerXYPlane    = (XSize)*(YSize)*ones(ZSize+1);
 ElemPer.XYFaceNum           = XSize*YSize*(ZSize+1);
 
+SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion = sparse(false(Num_of_Elem.SpN,1));
 end
 
 function sG = FDTD_sG(MeshMeasurements,Num_of_Elem)

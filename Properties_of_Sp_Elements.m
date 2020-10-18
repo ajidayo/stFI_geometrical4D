@@ -132,6 +132,7 @@ SpElemProperties.SpV.Belong_to_ST_FI = logical(sparse(1,Num_of_Elem.SpV));
 for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
     for IncSpV = find(sD(:,SpPIdx).')
         SpElemProperties.SpV.Belong_to_ST_FI(IncSpV) = true;
+        SpElemProperties.SpV.IncToSTFISpP(IncSpV) = true;
     end
 end
 
@@ -156,27 +157,6 @@ for SpVIdx = 1:Num_of_Elem.SpV
         end
     end
 end
-% VolPerXRow          = XSize;
-% VolPerXYPlane       = XSize*YSize;
-% for ZIdx = 1:ZSize
-%     for YIdx = 1:YSize
-%         for XIdx = 1:XSize
-%             x = (XIdx-0.5)*MeshMeasurements.dx;
-%             y = (YIdx-0.5)*MeshMeasurements.dy;
-%             z = (ZIdx-0.5)*MeshMeasurements.dz;
-%             if  abs(func_sigma_123(1,x,y,z))>EPSILON || abs(func_sigma_123(2,x,y,z))>EPSILON || abs(func_sigma_123(3,x,y,z))>EPSILON
-%                 SpVIdx = XIdx + (YIdx-1)*VolPerXRow + (ZIdx-1)*VolPerXYPlane;
-%                 for IncSpPIdx = find(sD(SpVIdx,:))
-%                     SpElemProperties.SpP.PML(IncSpPIdx)=true;
-%                     for IncSpSIdx = find(sC(IncSpPIdx,:))
-%                         SpElemProperties.SpS.PML(IncSpSIdx)=true;
-%                     end
-%                 end
-%             end
-%         end
-%     end
-% end
-% 
 SpElemProperties.SpP.FirstPMLImagDualSTP=sparse(1,Num_of_Elem.SpP);
 SpElemProperties.SpS.FirstPMLImagDualSTP=sparse(1,Num_of_Elem.SpS);
 
@@ -209,7 +189,7 @@ Num_of_Elem.PMLSpS = size(find(SpElemProperties.SpS.PML==true),2);
 disp('Properties_of_Sp_Elements: Roughly calculating the position of each primal face.')
 %% position of Primal Faces
 NodePos_Prim_Matrix = zeros(3,Num_of_Elem.SpN) ;
-for SpNIdx = Num_of_Elem.SpN
+for SpNIdx = 1:Num_of_Elem.SpN
     NodePos_Prim_Matrix(:,SpNIdx) = NodePos.Prim(SpNIdx).Vec;
 end
 PrimFacePos(Num_of_Elem.SpP).Vec = [0;0;0];

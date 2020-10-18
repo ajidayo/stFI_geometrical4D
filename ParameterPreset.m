@@ -3,10 +3,10 @@ global EPSILON
 switch SelectPreset
     case 1
         RefMeshPresetType = 'FDTD';
-        LocalUpdateNum = 1;
-        MeshMeasurements.XCoord = 30;
-        MeshMeasurements.YCoord = 18;
-        MeshMeasurements.ZCoord = 18;
+        LocalUpdateNum = 2;
+        MeshMeasurements.XCoord = 20;
+        MeshMeasurements.YCoord = 20;
+        MeshMeasurements.ZCoord = 20;
         MeshMeasurements.dxCoarse = 1;
         MeshMeasurements.dyCoarse = 1;
         MeshMeasurements.dzCoarse = 1;
@@ -21,18 +21,18 @@ switch SelectPreset
         disp(['LocalUpdateNum = ', num2str(LocalUpdateNum)])
     case 2
         RefMeshPresetType = 'FDTDWithSubgrid';
-        SubgridFineness = 2;
+        SubgridFineness  = 2;
         SubgridUpdateNum = 2;
         
-        MeshMeasurements.XCoord = 30;
-        MeshMeasurements.YCoord = 30;
-        MeshMeasurements.ZCoord = 30;
-        MeshMeasurements.XFineFromCoord = 12;
-        MeshMeasurements.YFineFromCoord = 12;
-        MeshMeasurements.ZFineFromCoord = 12;
-        MeshMeasurements.XFineToCoord   = 20;
-        MeshMeasurements.YFineToCoord   = 20;
-        MeshMeasurements.ZFineToCoord   = 20;
+        MeshMeasurements.XCoord = 25;
+        MeshMeasurements.YCoord = 25;
+        MeshMeasurements.ZCoord = 25;
+        MeshMeasurements.XFineFromCoord = 14;
+        MeshMeasurements.YFineFromCoord = 14;
+        MeshMeasurements.ZFineFromCoord = 14;
+        MeshMeasurements.XFineToCoord   = 18;
+        MeshMeasurements.YFineToCoord   = 18;
+        MeshMeasurements.ZFineToCoord   = 18;
         MeshMeasurements.dxCoarse = 1;
         MeshMeasurements.dyCoarse = 1;
         MeshMeasurements.dzCoarse = 1;
@@ -58,7 +58,6 @@ switch SelectPreset
             ZIdx_FineTo = round(MeshMeasurements.ZFineToCoord  /MeshMeasurements.dzCoarse);
         end
         
-
         
         LocalUpdateNum                      = ones(XSize+1,YSize+1,ZSize+1);
         MeshMeasurements.LocalGridFineness  = ones(XSize+1,YSize+1,ZSize+1);
