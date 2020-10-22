@@ -1,4 +1,4 @@
-function Source = GenerateSource(MeshMeasurements,SpElemProperties,ElemPer,sC)
+function Source = GenerateSource(SourceCenterPos,MeshMeasurements,SpElemProperties,ElemPer,sC)
 global SourcePeriod
 SourcePeriod = 20;
 WaveformPreset = 1;
@@ -12,15 +12,12 @@ switch WaveformPreset
 end
 Lightspeed = 1
 wavelength = Lightspeed/(1/SourcePeriod);
-disp(['Wavelength/meshsize = ', num2str(wavelength/max([MeshMeasurements.dxCoarse MeshMeasurements.dyCoarse MeshMeasurements.dzCoarse]) ) ])
+disp(['Wavelength/CoarseGridSize = ', num2str(wavelength/max([MeshMeasurements.dxCoarse MeshMeasurements.dyCoarse MeshMeasurements.dzCoarse]) ) ])
 
-XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
-YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
-ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
+X_SourceCenter = round(SourceCenterPos(1));
+Y_SourceCenter = round(SourceCenterPos(2));
+Z_SourceCenter = round(SourceCenterPos(3));
 
-X_SourceCenter = round(1*XSize/2);
-Y_SourceCenter = round(1*YSize/2);
-Z_SourceCenter = round(1*ZSize/2);
 SourceIdx = 0;
 for ZIdx = Z_SourceCenter+1
     for YIdx = [Y_SourceCenter  Y_SourceCenter+1]

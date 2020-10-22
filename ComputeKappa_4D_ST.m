@@ -44,7 +44,7 @@ for SpSIdx = find(SpElemProperties.SpS.UpdNumBoundary)
     STNIdxList_RefSpNIsTermNode2 = SpElemProperties.SpN.FirstSTNIdx(TerminalNodes(2))...
         :SpElemProperties.SpN.FirstSTNIdx(TerminalNodes(2))+SpElemProperties.SpN.UpdNum(TerminalNodes(2));
     if sum(DeltaSTNPos(:, STNIdxList_RefSpNIsTermNode1).^(2),'all')<EPSILON || sum(DeltaSTNPos(:, STNIdxList_RefSpNIsTermNode2).^(2),'all')<EPSILON
-        disp('ComputingDeltaSTNPos')
+       % disp('ComputingDeltaSTNPos')
         DeltaSTNPos = ...
             Compute_DeltaSTNPos_for_SingleBoundaryEdge(SpSIdx,DeltaSTNPos,NodePos,PrimEdgeTgtLeng,DualFaceTgtArea,sG,sC,D2,D3,SpElemProperties,STElemProperties,cdt);
         sGPatternOnUpdBoundary_CornerNodeExcluded = logical(sG);

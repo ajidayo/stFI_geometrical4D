@@ -1,4 +1,4 @@
-function [sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties,ElemPer] = RefMesh_Subgrid(MeshMeasurements,LocalUpdateNum)
+function [sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties,ElemPer,SpElemPositionIdx] = RefMesh_Subgrid(MeshMeasurements,LocalUpdateNum)
 global EPSILON
 XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
 YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
@@ -16,7 +16,7 @@ Num_of_Elem.SpN = ElemPer.NodeNum;
 
 if any(ElemFineness.SpV==0) || any(ElemFineness.SpP==0) ...
         || any(ElemFineness.SpS==0)
-    disp('Fineness undefined for some elements')
+    warning('RefMesh_Subgrid: Fineness undefined for some elements')
 end
 
 disp('RefMesh_Subgrid: Constructing DivMatrix sD')
@@ -58,17 +58,17 @@ else
     isOnFineGridCorner =  sparse(false(1,Num_of_Elem.SpN));
     SpElemProperties.SpN.isOn_EdgesOf_HomoUpdNumRegion = sparse(false(1,Num_of_Elem.SpN));
 end
-disp(['RefMesh_Subgrid :Total number of primal reference nodes on the edge/corner of the fine grid region - ', ...
+disp(['RefMesh_Subgrid: Total number of prim-nodes on the edge/corner of the fine grid bulk - ', ...
     num2str(size(find(isOnFineGridCorner),2))])
 
-
-disp('RefMesh_Subgrid:Calculating NodePositions')
+disp('RefMesh_Subgrid: Calculating Positions of the ref-nodes')
 for SpVIdx = 1:Num_of_Elem.SpV
     NodePos.Dual(SpVIdx).Vec = ...
         [MeshMeasurements.dxCoarse;MeshMeasurements.dyCoarse;MeshMeasurements.dzCoarse] .* SpElemPositionIdx.SpV(:,SpVIdx);
 end
 NodePos.Prim = Subgrid_NodePos_Prim(SpElemPositionIdx,ElemPer,ElemFineness,isOnFineGridCorner,sG,sC,sD,MeshMeasurements);
 
+disp('RefMesh_Subgrid: Setting UpdateNumbers for each Volumes')
 for ZIdx = 1:ZSize
     for YIdx = 1:YSize
         for XIdx = 1:XSize
@@ -82,8 +82,9 @@ for ZIdx = 1:ZSize
     end
 end
 
-disp('RefMesh_Subgrid:Setting Boundary Condition: Perfect Electric Wall')
-SpElemProperties.SpP.ElecWall = sparse(false(1,Num_of_Elem.SpP));
+disp('RefMesh_Subgrid:Setting Boundary Condition - Electric Wall')
+SpPPositionIdx = SpElemPositionIdx.SpP;
+SpElemProperties_SpP_ElecWall = false(1,Num_of_Elem.SpP);
 MeshEndsAt = [MeshMeasurements.XCoord;MeshMeasurements.YCoord;MeshMeasurements.ZCoord];    
 for SpPIdx = [...
         (1:ElemPer.YZFacePerYZPlane(1)) ...
@@ -92,68 +93,103 @@ for SpPIdx = [...
         ElemPer.YZFaceNum + (sum(ElemPer.ZXFacePerZXPlane(1:YSize))+1:ElemPer.ZXFaceNum) ...
         ElemPer.YZFaceNum + ElemPer.ZXFaceNum + (1:ElemPer.XYFacePerXYPlane(1)) ...
         ElemPer.YZFaceNum + ElemPer.ZXFaceNum + (sum(ElemPer.XYFacePerXYPlane(1:ZSize))+1:ElemPer.XYFaceNum)]
-    NodeLogIdxs_DefFace = logical(logical(sC(SpPIdx,:))*logical(sG));
-    MeanPosOfFace = mean([NodePos.Prim(NodeLogIdxs_DefFace).Vec],2);
-    if size(find(any([logical(abs(MeanPosOfFace-[0;0;0])<EPSILON);...
-            logical(abs(MeanPosOfFace-MeshEndsAt)<EPSILON)],2)),1)...
+    %     NodeLogIdxs_DefFace = logical(logical(sC(SpPIdx,:))*logical(sG));
+    %     PosOfFace = mean([NodePos.Prim(NodeLogIdxs_DefFace).Vec],2);
+    PosOfFace = SpDiscreteWidth_Coarse.*SpPPositionIdx(:,SpPIdx);
+    if size(find(any([logical(abs(PosOfFace-[0;0;0])<EPSILON);...
+            logical(abs(PosOfFace-MeshEndsAt)<EPSILON)],2)),1)...
             >=1
-        SpElemProperties.SpP.ElecWall(SpPIdx) = true;
+        SpElemProperties_SpP_ElecWall(SpPIdx) = true;
     end
 end
-SpElemProperties.SpS.PEC = sparse(false(1,Num_of_Elem.SpS));
-for SpPIdx = find(SpElemProperties.SpP.ElecWall)
+SpElemProperties_SpS_PEC = false(1,Num_of_Elem.SpS);
+for SpPIdx = find(SpElemProperties_SpP_ElecWall)
     for IncSpSIdx = find(sC(SpPIdx,:))
-        SpElemProperties.SpS.PEC(IncSpSIdx) = true;
+        SpElemProperties_SpS_PEC(IncSpSIdx) = true;
     end
 end
+SpElemProperties.SpP.ElecWall = sparse(SpElemProperties_SpP_ElecWall);
+SpElemProperties.SpS.PEC = sparse(SpElemProperties_SpS_PEC);
 
-disp('RefMesh_Subgrid:Pre-calculating the area of the faces in the FDTD-like region.')
-SpElemProperties.SpP.PrimAreaIsGiven = true(1,Num_of_Elem.SpP);
-SpElemProperties.SpP.DualLengIsGiven = true(1,Num_of_Elem.SpP);
-SpElemProperties.SpS.PrimLengIsGiven = true(1,Num_of_Elem.SpS);
-SpElemProperties.SpS.DualAreaIsGiven = true(1,Num_of_Elem.SpS);
+disp('RefMesh_Subgrid:Pre-calculating areas/lengths for primal/dual-faces/edges in FDTD-like region.')
+SpElemProperties_SpP_PrimAreaIsGiven = true(1,Num_of_Elem.SpP);
+SpElemProperties_SpP_DualLengIsGiven = true(1,Num_of_Elem.SpP);
+SpElemProperties_SpS_PrimLengIsGiven = true(1,Num_of_Elem.SpS);
+SpElemProperties_SpS_DualAreaIsGiven = true(1,Num_of_Elem.SpS);
+SpVFineness = ElemFineness.SpV;
 for SpPIdx = 1:Num_of_Elem.SpP
+    if mod(SpPIdx,round(0.1*Num_of_Elem.SpP)) == 1
+        disp(['Processing SpPIdx = ', num2str(SpPIdx),'/',num2str(Num_of_Elem.SpP)])
+    end
     IncSpVIdx = find(sD(:,SpPIdx).');
-    if SpElemProperties.SpP.ElecWall(SpPIdx) == false
-        if ElemFineness.SpV(IncSpVIdx(1)) ~= ElemFineness.SpV(IncSpVIdx(2))
+    if SpElemProperties_SpP_ElecWall(SpPIdx) == false
+        if SpVFineness(IncSpVIdx(1)) ~= SpVFineness(IncSpVIdx(2))
             SpPLogIdx_tgt = logical(logical(sD(:,SpPIdx).')*logical(sD));
             SpSLogIdx_tgt = logical(sC(SpPLogIdx_tgt,:));
-            SpElemProperties.SpP.PrimAreaIsGiven(SpPLogIdx_tgt) = false;
-            SpElemProperties.SpP.DualLengIsGiven(SpPLogIdx_tgt) = false;
-            SpElemProperties.SpS.PrimLengIsGiven(SpSLogIdx_tgt) = false;
-            SpElemProperties.SpS.DualAreaIsGiven(SpSLogIdx_tgt) = false;
+            SpElemProperties_SpP_PrimAreaIsGiven(SpPLogIdx_tgt) = false;
+            SpElemProperties_SpP_DualLengIsGiven(SpPLogIdx_tgt) = false;
+            SpElemProperties_SpS_PrimLengIsGiven(SpSLogIdx_tgt) = false;
+            SpElemProperties_SpS_DualAreaIsGiven(SpSLogIdx_tgt) = false;
         end
     end
 end
 
-SpElemProperties.SpP.PrimArea = zeros(Num_of_Elem.SpP,1);
-SpElemProperties.SpP.DualLeng = zeros(Num_of_Elem.SpP,1);
-SpElemProperties.SpS.PrimLeng = zeros(Num_of_Elem.SpS,1);
-SpElemProperties.SpS.DualArea = zeros(Num_of_Elem.SpS,1);
+disp('RefMesh_Subgrid:Pre-calculating areas/lengths for primal/dual-faces/edges in FDTD-like region.')
+SpElemProperties_SpP_PrimArea = zeros(Num_of_Elem.SpP,1);
+SpElemProperties_SpP_DualLeng = zeros(Num_of_Elem.SpP,1);
+SpElemProperties_SpS_PrimLeng = zeros(Num_of_Elem.SpS,1);
+SpElemProperties_SpS_DualArea = zeros(Num_of_Elem.SpS,1);
 StandardArea = [...
     MeshMeasurements.dyCoarse*MeshMeasurements.dzCoarse;...
     MeshMeasurements.dzCoarse*MeshMeasurements.dxCoarse;...
     MeshMeasurements.dxCoarse*MeshMeasurements.dyCoarse];
 StandardLength = ...
     [MeshMeasurements.dxCoarse;MeshMeasurements.dyCoarse;MeshMeasurements.dzCoarse];
-for SpPIdx = find(SpElemProperties.SpP.PrimAreaIsGiven)
-    PrimFaceDirec = SpElemPositionIdx.SpV*sD(:,SpPIdx);
-    PrimFaceDirec = norm(PrimFaceDirec).^(-1)*PrimFaceDirec;
-    SpElemProperties.SpP.PrimArea(SpPIdx) = ElemFineness.SpP(SpPIdx)^(-2)*dot(PrimFaceDirec.',StandardArea.*PrimFaceDirec);
+SpNPositionIdx = SpElemPositionIdx.SpN;
+SpVPositionIdx = SpElemPositionIdx.SpV;
+if norm(StandardLength-[1;1;1])<EPSILON && norm(StandardArea-[1;1;1])<EPSILON
+    for SpPIdx = find(SpElemProperties_SpP_PrimAreaIsGiven)
+        SpElemProperties_SpP_PrimArea(SpPIdx) = ElemFineness.SpP(SpPIdx)^(-2);
+    end
+    for SpPIdx = find(SpElemProperties_SpP_DualLengIsGiven)
+        SpElemProperties_SpP_DualLeng(SpPIdx) = ElemFineness.SpP(SpPIdx)^(-1);
+    end
+    for SpSIdx = find(SpElemProperties_SpS_PrimLengIsGiven)
+        SpElemProperties_SpS_PrimLeng(SpSIdx) = ElemFineness.SpS(SpSIdx)^(-1);
+    end
+    for SpSIdx = find(SpElemProperties_SpS_DualAreaIsGiven)
+        SpElemProperties_SpS_DualArea(SpSIdx) = ElemFineness.SpS(SpSIdx)^(-2);
+    end
+else
+    warning('StandardLength~=1 or StandardArea~=1 - Unrecommended')
+    for SpPIdx = find(SpElemProperties_SpP_PrimAreaIsGiven)
+        PrimFaceDirec = SpVPositionIdx*sD(:,SpPIdx);
+        PrimFaceDirec = norm(PrimFaceDirec).^(-1)*PrimFaceDirec;
+        SpElemProperties_SpP_PrimArea(SpPIdx) = ElemFineness.SpP(SpPIdx)^(-2)*dot(PrimFaceDirec.',StandardArea.*PrimFaceDirec);
+    end
+    for SpPIdx = find(SpElemProperties_SpP_DualLengIsGiven)
+        DualEdge = StandardLength.*(SpVPositionIdx*sD(:,SpPIdx));
+        SpElemProperties_SpP_DualLeng(SpPIdx) = norm(DualEdge);
+    end
+    for SpSIdx = find(SpElemProperties_SpS_PrimLengIsGiven)
+        PrimEdge = StandardLength.*(SpNPositionIdx*sG(SpSIdx,:).');
+        SpElemProperties_SpS_PrimLeng(SpSIdx) = norm(PrimEdge);
+    end
+    for SpSIdx = find(SpElemProperties_SpS_DualAreaIsGiven)
+        DualFaceDirec = SpNPositionIdx*sG(SpSIdx,:).';
+        DualFaceDirec = norm(DualFaceDirec).^(-1)*DualFaceDirec;
+        SpElemProperties_SpS_DualArea(SpSIdx) = ElemFineness.SpS(SpSIdx)^(-2)*dot(DualFaceDirec,StandardArea.*DualFaceDirec);
+    end
 end
-for SpPIdx = find(SpElemProperties.SpP.DualLengIsGiven)
-    DualEdge = StandardLength.*(SpElemPositionIdx.SpV*sD(:,SpPIdx));
-    SpElemProperties.SpP.DualLeng(SpPIdx) = norm(DualEdge);
-end
-for SpSIdx = find(SpElemProperties.SpS.PrimLengIsGiven)
-    PrimEdge = StandardLength.*(SpElemPositionIdx.SpN*sG(SpSIdx,:).');
-    SpElemProperties.SpS.PrimLeng(SpSIdx) = norm(PrimEdge);
-end
-for SpSIdx = find(SpElemProperties.SpS.DualAreaIsGiven)
-    DualFaceDirec = SpElemPositionIdx.SpN*sG(SpSIdx,:).';
-    DualFaceDirec = norm(DualFaceDirec).^(-1)*DualFaceDirec;
-    SpElemProperties.SpS.DualArea(SpSIdx) = ElemFineness.SpS(SpSIdx)^(-2)*dot(DualFaceDirec,StandardArea.*DualFaceDirec);
-end
+SpElemProperties.SpP.PrimAreaIsGiven = SpElemProperties_SpP_PrimAreaIsGiven;
+SpElemProperties.SpP.DualLengIsGiven = SpElemProperties_SpP_DualLengIsGiven;
+SpElemProperties.SpS.PrimLengIsGiven = SpElemProperties_SpS_PrimLengIsGiven;
+SpElemProperties.SpS.DualAreaIsGiven = SpElemProperties_SpS_DualAreaIsGiven;
+SpElemProperties.SpP.PrimArea = SpElemProperties_SpP_PrimArea;
+SpElemProperties.SpP.DualLeng = SpElemProperties_SpP_DualLeng;
+SpElemProperties.SpS.PrimLeng = SpElemProperties_SpS_PrimLeng;
+SpElemProperties.SpS.DualArea = SpElemProperties_SpS_DualArea;
+
 end
 %%
 function ElemPer = CountElemPerCoarseGrid_Row_Plane_TotalNum(MeshMeasurements)
@@ -1462,12 +1498,12 @@ NodePosPrimM = zeros(3,size(sG,2));
 for SpNIdx = 1:size(sG,2)
     NodePosPrimM(:,SpNIdx) = SpElemPositionIdx.SpN(:,SpNIdx);
 end
-ProgressPercentage = -25;
+%ProgressPercentage = -25;
 for SpVIdx = 1:size(sD,1)
-    if mod(SpVIdx,round(0.25*size(sD,1))) == 1
-        ProgressPercentage = ProgressPercentage + 25;
-        disp(['Subgrid_NodePos_Prim : Progress - ',num2str(ProgressPercentage),' %'])
-    end
+    %     if mod(SpVIdx,round(0.25*size(sD,1))) == 1
+    %         ProgressPercentage = ProgressPercentage + 25;
+    %         disp(['Subgrid_NodePos_Prim : Progress - ',num2str(ProgressPercentage),' %'])
+    %     end
     YZSpPs = 1:ElemPer.YZFaceNum;
     IncYZSpPIdx = find(sD(SpVIdx,YZSpPs))+0;
     BoundaryYZSpPIdx = IncYZSpPIdx(logical(ElemFineness.SpP(IncYZSpPIdx)/ElemFineness.SpV(SpVIdx) >1));
@@ -1510,7 +1546,7 @@ if isempty(isAlreadyAdjusted)
     isAlreadyAdjusted = sparse(false(1,size(sG,2)));
 end
 
-NodePosPrimDeltaM = sparse(3,size(sG,2));
+NodePosPrimDeltaM = zeros(3,size(sG,2));
 
 % find incident faces with greater fineness. 
 % Here we assume that all of these faces are quadrangles.

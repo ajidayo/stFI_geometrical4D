@@ -1,5 +1,5 @@
-function [SpElemProperties,STElemProperties,Num_of_Elem,PrimFacePos] = Properties_of_Sp_Elements(sG,sC,sD,SpElemProperties,Num_of_Elem,NodePos)
-global EPSILON
+function [SpElemProperties,STElemProperties,Num_of_Elem,SigmaSpV] = Properties_of_Sp_Elements(sG,sC,sD,SpElemProperties,Num_of_Elem,NodePos)
+% global EPSILON
 disp('Properties_of_Sp_Elements: Determing Updating Numbers per timestep for each Sp-Element')
 %% UpdNum
 UpdNum_SpV = SpElemProperties.SpV.UpdNum;
@@ -136,27 +136,32 @@ for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
     end
 end
 
-% SpElemProperties.SpS.UpdNumCorner = logical(sparse(1,Num_of_Elem.SpS));
-% SpElemProperties.SpN.UpdNumCorner = logical(sparse(1,Num_of_Elem.SpN));
-% for SpSIdx = find(SpElemProperties.SpS.UpdNumCorner)
-%     SpElemProperties.SpN.UpdNumCorner(logical(sG(SpSIdx,:))) = true;
-% end
 %% PML
-SpElemProperties.SpS.PML        = false(1,Num_of_Elem.SpS);
-SpElemProperties.SpP.PML        = false(1,Num_of_Elem.SpP);
+NodePosDual_M = zeros(3,Num_of_Elem.SpV) ;
 for SpVIdx = 1:Num_of_Elem.SpV
-    x = NodePos.Dual(SpVIdx).Vec(1);
-    y = NodePos.Dual(SpVIdx).Vec(2);
-    z = NodePos.Dual(SpVIdx).Vec(3);
-    if  abs(func_sigma_123(1,x,y,z))>EPSILON || abs(func_sigma_123(2,x,y,z))>EPSILON || abs(func_sigma_123(3,x,y,z))>EPSILON
+    NodePosDual_M(:,SpVIdx) = NodePos.Dual(SpVIdx).Vec;
+end
+
+SigmaSpV = zeros(3,Num_of_Elem.SpV); 
+SpElemProperties_SpS_PML        = false(1,Num_of_Elem.SpS);
+SpElemProperties_SpP_PML        = false(1,Num_of_Elem.SpP);
+for SpVIdx = 1:Num_of_Elem.SpV
+    if mod(SpVIdx,round(0.2*Num_of_Elem.SpV)) == 0
+        disp(['Properties_of_Sp_Elements: Computing SigmaSpV. Current progress - ', num2str(100*SpVIdx/Num_of_Elem.SpV), "%"])
+    end
+    SigmaSpV(:,SpVIdx) = func_sigma_123(NodePosDual_M(:,SpVIdx));
+    if norm(SigmaSpV(:,SpVIdx))>0
         for IncSpPIdx = find(sD(SpVIdx,:))
-            SpElemProperties.SpP.PML(IncSpPIdx)=true;
+            SpElemProperties_SpP_PML(IncSpPIdx)=true;
             for IncSpSIdx = find(sC(IncSpPIdx,:))
-                SpElemProperties.SpS.PML(IncSpSIdx)=true;
+                SpElemProperties_SpS_PML(IncSpSIdx)=true;
             end
         end
     end
 end
+SpElemProperties.SpS.PML = SpElemProperties_SpS_PML;
+SpElemProperties.SpP.PML = SpElemProperties_SpP_PML;
+
 SpElemProperties.SpP.FirstPMLImagDualSTP=sparse(1,Num_of_Elem.SpP);
 SpElemProperties.SpS.FirstPMLImagDualSTP=sparse(1,Num_of_Elem.SpS);
 
@@ -186,15 +191,27 @@ end
 Num_of_Elem.PMLSpP = size(find(SpElemProperties.SpP.PML==true),2);
 Num_of_Elem.PMLSpS = size(find(SpElemProperties.SpS.PML==true),2);
 
-disp('Properties_of_Sp_Elements: Roughly calculating the position of each primal face.')
+
+%% Check Exclusivity of TaskTypes
+if any(SpElemProperties.SpP.Belong_to_ST_FI.* SpElemProperties.SpP.PML)
+    warning('More than one Sp-faces have both STFI and PML property (prohibited)')
+end
+if any(SpElemProperties.SpS.Belong_to_ST_FI.*SpElemProperties.SpS.PML)
+    warning('More than one Sp-edges have both STFI and PML property (prohibited)')
+end
+
 %% position of Primal Faces
-NodePos_Prim_Matrix = zeros(3,Num_of_Elem.SpN) ;
-for SpNIdx = 1:Num_of_Elem.SpN
-    NodePos_Prim_Matrix(:,SpNIdx) = NodePos.Prim(SpNIdx).Vec;
-end
-PrimFacePos(Num_of_Elem.SpP).Vec = [0;0;0];
-for SpPIdx = 1:Num_of_Elem.SpP
-    Nodes_LogIdx = logical(logical(sC(SpPIdx,:))*logical(sG));
-    PrimFacePos(SpPIdx).Vec = mean(NodePos_Prim_Matrix(:,Nodes_LogIdx),2);
-end
+% disp('Properties_of_Sp_Elements: Roughly calculating the position of each primal face.')
+% NodePos_Prim_Matrix = zeros(3,Num_of_Elem.SpN) ;
+% for SpNIdx = 1:Num_of_Elem.SpN
+%     NodePos_Prim_Matrix(:,SpNIdx) = NodePos.Prim(SpNIdx).Vec;
+% end
+% PrimFacePos(Num_of_Elem.SpP).Vec = [0;0;0];
+% for SpPIdx = 1:Num_of_Elem.SpP
+%     if mod(SpPIdx,round(0.1*Num_of_Elem.SpP)) == 1
+%         disp(['Processing SpPIdx = ', num2str(SpPIdx),'/',num2str(Num_of_Elem.SpP)])
+%     end
+%     Nodes_LogIdx = logical(logical(sC(SpPIdx,:))*logical(sG));
+%     PrimFacePos(SpPIdx).Vec = mean(NodePos_Prim_Matrix(:,Nodes_LogIdx),2);
+% end
 end

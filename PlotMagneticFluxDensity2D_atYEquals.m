@@ -1,4 +1,4 @@
-function PlotMagneticFluxDensity2D_atYEquals(FieldDoFs,YConst,FaceArea,PrimFacePos,MeshMeasurements)
+function PlotMagneticFluxDensity2D_atYEquals(FieldDoFs,YConst,FaceArea,SpElemPositionIdx_SpP,MeshMeasurements)
 global SpDIM EPSILON
 
 dx = MeshMeasurements.dxCoarse;
@@ -15,9 +15,9 @@ ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
 B_SquareoidMesh = zeros(XSize+1,YSize+1,ZSize+1,SpDIM);
 Area_Squareoid  = ones(XSize+1,YSize+1,ZSize+1,SpDIM);
 for SpPIdx = 1:size(FaceArea.Prim,1)
-    xIdx = PrimFacePos(SpPIdx).Vec(1)/dx;
-    yIdx = PrimFacePos(SpPIdx).Vec(2)/dy;
-    zIdx = PrimFacePos(SpPIdx).Vec(3)/dz;
+    xIdx = SpElemPositionIdx_SpP(1,SpPIdx)/dx;
+    yIdx = SpElemPositionIdx_SpP(2,SpPIdx)/dy;
+    zIdx = SpElemPositionIdx_SpP(3,SpPIdx)/dz;
     if abs(xIdx - round(xIdx)) < EPSILON
         dimIdx = 1;
         xIdx = round(xIdx)+1;
@@ -70,7 +70,7 @@ end
 %%
 figure('name',['Bx*i+Bz*k at Y =',num2str(YConst-0.5) 'Calculated by New Method'])
 xa = gca;
-scale = 20;
+scale = 60;
 quiver(VecPosX,VecPosZ,B_Vol_X,B_Vol_Z,scale)
 xlabel('x','FontSize',30)
 ylabel('z','FontSize',30)

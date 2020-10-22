@@ -1,6 +1,16 @@
 function [Task,TaskDepGraph,SpElemProperties,STElemProperties] ...
     = GenerateSp_FI_Tasks_4D_ST(sC,sD,SpElemProperties,STElemProperties,Num_of_Elem,Task,TaskDepGraph)
+
+TaskFieldNames = fieldnames(Task(size(Task,2)));
+switch isempty(Task(size(Task,2)).(TaskFieldNames{1}))
+    case 1
+        GlobalTaskIdx = 0;
+    otherwise
+        GlobalTaskIdx = size(Task,2);
+end
+
 sDPattern_PartiallyOmitted=logical(sD);
+
 
 for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
     sDPattern_PartiallyOmitted(:,SpPIdx)=false;
@@ -29,8 +39,8 @@ clearvars Adj_SpP_PartiallyOmitted
      = Eliminate_STFIandPMLSpPs(SG_bin_SpP,SG_ElemNum_SpP,SpElemProperties,Num_of_Elem);
 clearvars SG_bin_SpP SG_ElemNum_SpP
 for SpFI_TaskIdx =1:size(SpFI_TaskInfo,2)
-    SpFI_TaskInfo(SpFI_TaskIdx).ElemIdx.SpS = 0;
-    SpFI_TaskInfo(SpFI_TaskIdx).ElemNum.SpS = 0;
+    SpFI_TaskInfo(SpFI_TaskIdx).SpStar = 0;
+    SpFI_TaskInfo(SpFI_TaskIdx).SpStarNum = 0;
 end
 SpElemProperties.SpS.SpFI_TaskIdx=zeros(Num_of_Elem.SpS,1);
 for SpS_tgt=1:Num_of_Elem.SpS
@@ -50,16 +60,16 @@ for SpS_tgt=1:Num_of_Elem.SpS
         disp(['SpFI_TaskIdx == 0, SpS_tgt = ',num2str(SpS_tgt)])
     end
     
-    Num_of_IncludedSpS = SpFI_TaskInfo(SpFI_TaskIdx).ElemNum.SpS +1;
-    SpFI_TaskInfo(SpFI_TaskIdx).ElemNum.SpS = Num_of_IncludedSpS;
-    SpFI_TaskInfo(SpFI_TaskIdx).ElemIdx.SpS(Num_of_IncludedSpS) = SpS_tgt;
+    Num_of_IncludedSpS = SpFI_TaskInfo(SpFI_TaskIdx).SpStarNum +1;
+    SpFI_TaskInfo(SpFI_TaskIdx).SpStarNum = Num_of_IncludedSpS;
+    SpFI_TaskInfo(SpFI_TaskIdx).SpStar(Num_of_IncludedSpS) = SpS_tgt;
     SpElemProperties.SpS.SpFI_TaskIdx(SpS_tgt)=SpFI_TaskIdx;
 end
 
 for SpFI_TaskIdx = 1:size(SpFI_TaskInfo,2)
     DepSpSNum = 0;
     SpSCheckedFlag = false(1,Num_of_Elem.SpS);
-    for SpPIdx = SpFI_TaskInfo(SpFI_TaskIdx).ElemIdx.SpP
+    for SpPIdx = SpFI_TaskInfo(SpFI_TaskIdx).SpPtar
         for IncSpSIdx = find(sC(SpPIdx,:))
             if SpSCheckedFlag(IncSpSIdx) == true
                 continue;
@@ -77,7 +87,7 @@ end
 for SpFI_TaskIdx = 1:size(SpFI_TaskInfo,2)
     DepSpPNum = 0;
     SpPCheckedFlag = false(1,Num_of_Elem.SpP);
-    for SpSIdx = SpFI_TaskInfo(SpFI_TaskIdx).ElemIdx.SpS
+    for SpSIdx = SpFI_TaskInfo(SpFI_TaskIdx).SpStar
         for IncSpPIdx = find(sC(:,SpSIdx)).'
             if SpPCheckedFlag(IncSpPIdx) == true
                 continue;
@@ -102,15 +112,16 @@ switch size(fieldnames(Task(size(Task,2))),1)
 end
 for SpFI_TaskIdx=1:size(SpFI_TaskInfo,2)
     SpFI_TaskInfo(SpFI_TaskIdx).UpdNum = ...
-        SpElemProperties.SpP.UpdNum(SpFI_TaskInfo(SpFI_TaskIdx).ElemIdx.SpP(1));
+        SpElemProperties.SpP.UpdNum(SpFI_TaskInfo(SpFI_TaskIdx).SpPtar(1));
     for CurrentTimeSec = 1:SpFI_TaskInfo(SpFI_TaskIdx).UpdNum
         GlobalTaskIdx = GlobalTaskIdx+1;
+        Task(GlobalTaskIdx) = GenerEmptyTask;
         if CurrentTimeSec == 1
             Map_SpElem_to_FirstGlobTask.SpFI_RegionIdx(SpFI_TaskIdx) = GlobalTaskIdx;
-            for SpPIdx = SpFI_TaskInfo(SpFI_TaskIdx).ElemIdx.SpP
+            for SpPIdx = SpFI_TaskInfo(SpFI_TaskIdx).SpPtar
                 Map_SpElem_to_FirstGlobTask.SpPIdx(SpPIdx)=GlobalTaskIdx;
             end
-            for SpSIdx = SpFI_TaskInfo(SpFI_TaskIdx).ElemIdx.SpS
+            for SpSIdx = SpFI_TaskInfo(SpFI_TaskIdx).SpStar
                 Map_SpElem_to_FirstGlobTask.SpSIdx(SpSIdx)=GlobalTaskIdx;
             end
         end
@@ -128,7 +139,7 @@ for SpFI_TaskIdx=1:size(SpFI_TaskInfo,2)
                 DepSTPIdx = SpElemProperties.SpP.FirstSTPIdx(DepSpPIdx)-1 ...
                     +CurrentTimeSec;
                 DepSTPNum = DepSTPNum +1;
-                Task(GlobalTaskIdx).DepSTPIdx(DepSTPNum) = DepSTPIdx;
+                Task(GlobalTaskIdx).DepSTP(DepSTPNum) = DepSTPIdx;
             end
         end
         if isfield(SpFI_TaskInfo(SpFI_TaskIdx),'DepSpSIdx')
@@ -136,15 +147,15 @@ for SpFI_TaskIdx=1:size(SpFI_TaskInfo,2)
                 DepSTPIdx = SpElemProperties.SpS.FirstSTPIdx(DepSpSIdx) ...
                     +CurrentTimeSec;
                 DepSTPNum = DepSTPNum +1;
-                Task(GlobalTaskIdx).DepSTPIdx(DepSTPNum) = DepSTPIdx;
+                Task(GlobalTaskIdx).DepSTP(DepSTPNum) = DepSTPIdx;
             end
         end
-        for SpPIdx = Task(GlobalTaskIdx).ElemIdx.SpP
+        for SpPIdx = Task(GlobalTaskIdx).SpPtar
             STP_Tgt = SpElemProperties.SpP.FirstSTPIdx(SpPIdx) ...
                 +CurrentTimeSec;
             STElemProperties.STP.TaskIdx(STP_Tgt) = GlobalTaskIdx;
         end
-        for SpSIdx = Task(GlobalTaskIdx).ElemIdx.SpS
+        for SpSIdx = Task(GlobalTaskIdx).SpStar
             STP_Tgt = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)...
                 +CurrentTimeSec;
             STElemProperties.STP.TaskIdx(STP_Tgt) = GlobalTaskIdx;
@@ -177,9 +188,9 @@ for SGIdx=1:size(SG_ElemNum_SpP,2)
     if SpElemProperties.SpP.Belong_to_ST_FI(SpP_test) || SpElemProperties.SpP.PML(SpP_test)
     else
         SpFI_TaskIdx=SpFI_TaskIdx+1;
-        SpFI_TaskInfo(SpFI_TaskIdx).Sp_FI_Region_tgt = SpFI_TaskIdx;
-        SpFI_TaskInfo(SpFI_TaskIdx).ElemIdx.SpP=LogiIdx;
-        SpFI_TaskInfo(SpFI_TaskIdx).ElemNum.SpP=SG_ElemNum_SpP(SGIdx);
+       % SpFI_TaskInfo(SpFI_TaskIdx).Sp_FI_Region_tgt = SpFI_TaskIdx;
+        SpFI_TaskInfo(SpFI_TaskIdx).SpPtar = LogiIdx;
+        SpFI_TaskInfo(SpFI_TaskIdx).SpPtarNum = SG_ElemNum_SpP(SGIdx);
         SpElemProperties.SpP.SpFI_TaskIdx(LogiIdx)=SpFI_TaskIdx;
     end
 end

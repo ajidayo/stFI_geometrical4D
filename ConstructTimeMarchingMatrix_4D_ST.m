@@ -1,25 +1,33 @@
 function TMM = ConstructTimeMarchingMatrix_4D_ST(D1,D2,sC,Kappa_over_Z,Sigma,Source,SpElemProperties,Task,TaskOrder,Num_of_Elem)
 disp('ConstructTimeMarchingMatrix_4D_ST: Composes the explicit time-marching matrix from each DoF-calculating tasks')
 TMM_Redundant = speye(Num_of_Elem.STP+Num_of_Elem.STSource+Num_of_Elem.PMLImagDualSTP);
-for nth_task = 1:size(TaskOrder,2)
-    if mod(nth_task-1,10^(-1+round(log10(size(TaskOrder,2)))) ) == 0
-        disp(['Processing ', num2str(nth_task),'/',...
+for nthTask = 1:size(TaskOrder,2)
+    if mod(nthTask-1,10^(-1+round(log10(size(TaskOrder,2)))) ) == 0
+        disp(['Processing ', num2str(nthTask),'/',...
             num2str(size(TaskOrder,2)),' th task'])
     end
-    taskIdx = TaskOrder(nth_task);
-    switch Task(taskIdx).Type
+    TaskIdx = TaskOrder(nthTask);
+    switch Task(TaskIdx).Type
         case "InitialCondition"
         case "BoundaryCondition"
+        case "STFIPrim_Block"
+            disp('TaskType:STFIPrim_Block')
+            TMM_Redundant = ...
+                Task(TaskIdx).TMMOnestepGenerFunc(Task(TaskIdx),D2,size(TMM_Redundant,1))*TMM_Redundant;
+        case "STFIDual_Block"
+            disp('TaskType:STFIDual_Block')
+            TMM_Redundant = ...
+                Task(TaskIdx).TMMOnestepGenerFunc(Task(TaskIdx),D1,Kappa_over_Z,size(TMM_Redundant,1))*TMM_Redundant;
         case "PML"
             disp('TaskType:PML')
-             TMM_Redundant = SingleTask_PML(Task(taskIdx),sC,Kappa_over_Z,Sigma,SpElemProperties,Num_of_Elem,TMM_Redundant);
+             TMM_Redundant = SingleTask_PML(Task(TaskIdx),sC,Kappa_over_Z,Sigma,SpElemProperties,Num_of_Elem,TMM_Redundant);
         case "ST_FI_Prim"
-            TMM_Redundant = SingleTask_STFI_Prim(Task(taskIdx),D2,TMM_Redundant);
+            TMM_Redundant = SingleTask_STFI_Prim(Task(TaskIdx),D2,TMM_Redundant);
         case "ST_FI_Dual"
-            TMM_Redundant = SingleTask_STFI_Dual(Task(taskIdx),D1,Kappa_over_Z,TMM_Redundant);
+            TMM_Redundant = SingleTask_STFI_Dual(Task(TaskIdx),D1,Kappa_over_Z,TMM_Redundant);
         case "Sp_FI"
             disp('TaskType:SpFI')
-            TMM_Redundant = SingleTask_SpFI(Task(taskIdx),sC,Kappa_over_Z,Source,SpElemProperties,Num_of_Elem,TMM_Redundant);
+            TMM_Redundant = SingleTask_SpFI(Task(TaskIdx),sC,Kappa_over_Z,Source,SpElemProperties,Num_of_Elem,TMM_Redundant);
         otherwise
             disp("No such Tasktype defined.")
     end
@@ -34,10 +42,9 @@ function TMM_Redundant = SingleTask_STFI_Prim(STFI_PrimTask,D2,TMM_Redundant)
 %disp('SingleTask_STFI_Prim CALLED')
 TMM_Onestep=speye(size(TMM_Redundant,1),size(TMM_Redundant,2));
 STPNum = size(D2,2);
-TMM_Onestep(STFI_PrimTask.STP_Tgt,1:STPNum) = ...
-    -(1.0/D2(STFI_PrimTask.STOmega_Tgt,STFI_PrimTask.STP_Tgt))*D2(STFI_PrimTask.STOmega_Tgt,:);
-TMM_Onestep(STFI_PrimTask.STP_Tgt,STFI_PrimTask.STP_Tgt)=0;
-
+TMM_Onestep(STFI_PrimTask.STPtgt,1:STPNum) = ...
+    -(1.0/D2(STFI_PrimTask.STHtgt,STFI_PrimTask.STPtgt))*D2(STFI_PrimTask.STHtgt,:);
+TMM_Onestep(STFI_PrimTask.STPtgt,STFI_PrimTask.STPtgt)=0;
 TMM_Redundant=TMM_Onestep*TMM_Redundant;
 end
 
@@ -46,21 +53,21 @@ function TMM_Redundant= SingleTask_STFI_Dual(STFI_DualTask,D1,Kappa_over_Z,TMM_R
 %disp('SingleTask_STFI_Dual CALLED')
 TMM_Onestep=speye(size(TMM_Redundant,1),size(TMM_Redundant,2));
 STPNum = size(D1,1);
-TMM_Onestep(STFI_DualTask.STP_Tgt,1:STPNum) = ...
-    -(1.0/(D1(STFI_DualTask.STP_Tgt,STFI_DualTask.STOmegaTilde_Tgt)*Kappa_over_Z(STFI_DualTask.STP_Tgt)))...
-    *(D1(:,STFI_DualTask.STOmegaTilde_Tgt).'*spdiags(Kappa_over_Z,0,STPNum,STPNum));
-TMM_Onestep(STFI_DualTask.STP_Tgt,STFI_DualTask.STP_Tgt)=0;
+TMM_Onestep(STFI_DualTask.STPtgt,1:STPNum) = ...
+    -(1.0/(D1(STFI_DualTask.STPtgt,STFI_DualTask.STStgt)*Kappa_over_Z(STFI_DualTask.STPtgt)))...
+    *(D1(:,STFI_DualTask.STStgt).'*spdiags(Kappa_over_Z,0,STPNum,STPNum));
+TMM_Onestep(STFI_DualTask.STPtgt,STFI_DualTask.STPtgt)=0;
 TMM_Redundant=TMM_Onestep*TMM_Redundant;
 end
 
 %%
 function TMM_Redundant = ...
-    SingleTask_SpFI(SpFI_TaskInfo,sC,Kappa_over_Z,Source,SpElemProperties,Num_of_Elem,TMM_Redundant)
+    SingleTask_SpFI(Task,sC,Kappa_over_Z,Source,SpElemProperties,Num_of_Elem,TMM_Redundant)
 %disp('SingleTask_SpFI CALLED')
 %TMM_Onestep      = speye(size(TMM_Redundant,1),size(TMM_Redundant,2));
 
-Sp_FI_Region_tgt = SpFI_TaskInfo.Sp_FI_Region_tgt;
-TimeSection_tgt  = SpFI_TaskInfo.TimeSection_tgt;
+%Sp_FI_Region_tgt = SpFI_TaskInfo.Sp_FI_Region_tgt;
+TimeSection_tgt  = Task.TimeSection_tgt;
 
 ConservedSTP_Faraday = true(Num_of_Elem.STP,1);
 ConservedSTP_Ampere  = true(Num_of_Elem.STP,1);
@@ -71,7 +78,7 @@ Map_SpS_STPPast         = logical(sparse(Num_of_Elem.SpS,Num_of_Elem.STP));
 Map_SpPinctoSpS_STPPast = logical(sparse(Num_of_Elem.SpP,Num_of_Elem.STP));
 Map_SpSinctoSpP_STPFutr = logical(sparse(Num_of_Elem.SpS,Num_of_Elem.STP));
 
-for SpPIdx  = SpFI_TaskInfo.ElemIdx.SpP
+for SpPIdx  = Task.SpPtar
     STPFutr = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)+TimeSection_tgt;
     STPPast = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)+TimeSection_tgt-1;
     Map_STPFutr_SpP(STPFutr,SpPIdx)    = true;
@@ -82,7 +89,7 @@ for SpPIdx  = SpFI_TaskInfo.ElemIdx.SpP
         Map_SpSinctoSpP_STPFutr(SpSIdx,STPFutr)    = true;
     end
 end
-for SpSIdx  = SpFI_TaskInfo.ElemIdx.SpS
+for SpSIdx  = Task.SpStar
     STPFutr = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+TimeSection_tgt;
     STPPast = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+TimeSection_tgt-1;
     Map_STPFutr_SpS(STPFutr,SpSIdx)    = true;
@@ -107,8 +114,7 @@ ST_SourceIdx = 0;
 for SpSourceIdx = 1:size(Source,2)
     for CurrentTimeSec = 1:Source(SpSourceIdx).UpdNum 
         ST_SourceIdx = ST_SourceIdx+1;
-        if SpElemProperties.SpS.SpFI_TaskIdx(Source(SpSourceIdx).DualFace_tgt)==Sp_FI_Region_tgt ...
-                && CurrentTimeSec == TimeSection_tgt
+        if ismember(Source(SpSourceIdx).DualFace_tgt,Task.SpStar) && CurrentTimeSec == TimeSection_tgt
             SourcePattern(Source(SpSourceIdx).DualFace_tgt,ST_SourceIdx)=1;
         end
     end
@@ -155,7 +161,7 @@ Map_DoFFutr_IncSpS          = logical(sparse(Num_of_Elem.STP            ,Num_of_
 Map_PMLDualDoFPast_IncSpP   = logical(sparse(Num_of_Elem.PMLImagDualSTP ,Num_of_Elem.SpP));
 Map_DoFPast_IncSpP          = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpP));
 
-for SpPIdx  = PML_TaskInfo.ElemIdx.SpP
+for SpPIdx  = PML_TaskInfo.SpPtar
     DoFFutr         = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)          +TimeSection_tgt  ;
     DoFPast         = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)          +TimeSection_tgt-1;
     PMLDualDoFFutr  = SpElemProperties.SpP.FirstPMLImagDualSTP(SpPIdx)  +TimeSection_tgt  ;
@@ -173,7 +179,7 @@ for SpPIdx  = PML_TaskInfo.ElemIdx.SpP
     end
 end
 
-for SpSIdx  = PML_TaskInfo.ElemIdx.SpS
+for SpSIdx  = PML_TaskInfo.SpStar
     DoFFutr         = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)          +TimeSection_tgt  ;
     DoFPast         = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)          +TimeSection_tgt-1;
     PMLDualDoFFutr  = SpElemProperties.SpS.FirstPMLImagDualSTP(SpSIdx)  +TimeSection_tgt  ;
@@ -202,7 +208,7 @@ PMLDualDoF_Idxs = ...
     Num_of_Elem.STP+Num_of_Elem.STSource+Num_of_Elem.PMLImagDualSTP;
 PrimDoF_Idxs = 1:Num_of_Elem.STP;
 
-PMLOFF = false
+PMLON = true
 
 Z0 = 1;
 
@@ -213,7 +219,7 @@ PMLCoeff_Ampere_gSpPast = (1-0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpS.ThreeOneTwo)..
 PMLCoeff_Ampere_gSpPast = spdiags(PMLCoeff_Ampere_gSpPast,0,Num_of_Elem.SpS,Num_of_Elem.SpS);
 PMLCoeff_Ampere_gTi     = (1+0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpP.ThreeOneTwo).^(-1);
 PMLCoeff_Ampere_gTi     = spdiags(PMLCoeff_Ampere_gTi,0,Num_of_Elem.SpP,Num_of_Elem.SpP);
-if PMLOFF
+if ~PMLON
     PMLCoeff_Ampere_gSpPast = speye(Num_of_Elem.SpS);
     PMLCoeff_Ampere_gTi     = speye(Num_of_Elem.SpP);
 end
@@ -241,7 +247,7 @@ PMLCoeff_ConstiG2F_gSpFutr = spdiags(PMLCoeff_ConstiG2F_gSpFutr,0,Num_of_Elem.Sp
 PMLCoeff_ConstiG2F_gSpPast= (1-0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpS.OneTwoThree)...
     .*(1+0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpS.TwoThreeOne).^(-1);
 PMLCoeff_ConstiG2F_gSpPast = spdiags(PMLCoeff_ConstiG2F_gSpPast,0,Num_of_Elem.SpS,Num_of_Elem.SpS);
-if PMLOFF
+if ~PMLON
     PMLCoeff_ConstiG2F_fTiPast = speye(Num_of_Elem.SpS);
     PMLCoeff_ConstiG2F_gSpFutr = speye(Num_of_Elem.SpS);
     PMLCoeff_ConstiG2F_gSpPast = speye(Num_of_Elem.SpS);
@@ -270,7 +276,7 @@ PMLCoeff_Faraday_fSpPast = spdiags(PMLCoeff_Faraday_fSpPast,0,Num_of_Elem.SpP,Nu
 PMLCoeff_Faraday_fTi     = (1+0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpS.ThreeOneTwo).^(-1);
 PMLCoeff_Faraday_fTi = spdiags(PMLCoeff_Faraday_fTi,0,Num_of_Elem.SpS,Num_of_Elem.SpS);
 
-if PMLOFF
+if ~PMLON
     PMLCoeff_Faraday_fSpPast    = speye(Num_of_Elem.SpP);
     PMLCoeff_Faraday_fTi        = speye(Num_of_Elem.SpS);
 end
@@ -294,7 +300,7 @@ PMLCoeff_ConstiF2G_fSpPast = (1-0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpP.OneTwoThree
     .*(1+0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpP.TwoThreeOne).^(-1);
 PMLCoeff_ConstiF2G_fSpPast = spdiags(PMLCoeff_ConstiF2G_fSpPast,0,Num_of_Elem.SpP,Num_of_Elem.SpP);
 
-if PMLOFF
+if ~PMLON
     PMLCoeff_ConstiF2G_gTiPast = speye(Num_of_Elem.SpP);
     PMLCoeff_ConstiF2G_fSpFutr = speye(Num_of_Elem.SpP);
     PMLCoeff_ConstiF2G_fSpPast = speye(Num_of_Elem.SpP);

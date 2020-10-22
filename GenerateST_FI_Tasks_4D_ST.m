@@ -32,14 +32,15 @@ for SpSIdx = find(SpElemProperties.SpS.Belong_to_ST_FI)
     STOmegaTilde_Tgt    = SpElemProperties.SpS.FirstSTSIdx(SpSIdx)-1;
     for CurrentTimeSec = 1:SpElemProperties.SpS.UpdNum(SpSIdx)
         GlobalTaskIdx = GlobalTaskIdx +1;
+        Task(GlobalTaskIdx) = GenerEmptyTask;
         STP_Tgt = STP_Tgt +1;
         STOmegaTilde_Tgt = STOmegaTilde_Tgt+1;
         Task(GlobalTaskIdx).Type = "ST_FI_Dual";
         if CurrentTimeSec == 1
             Map_SpElem_to_FirstGlobTask.SpSIdx(SpSIdx)=GlobalTaskIdx;
         end
-        Task(GlobalTaskIdx).STP_Tgt            = STP_Tgt;
-        Task(GlobalTaskIdx).STOmegaTilde_Tgt   = STOmegaTilde_Tgt;
+        Task(GlobalTaskIdx).STPtgt            = STP_Tgt;
+        Task(GlobalTaskIdx).STStgt   = STOmegaTilde_Tgt;
         STElemProperties.STP.TaskIdx(STP_Tgt)  = GlobalTaskIdx;
     end
 end
@@ -51,14 +52,15 @@ for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
     STOmega_Tgt   = SpElemProperties.SpP.FirstSTOmegaIdx(SpPIdx);
     for CurrentTimeSec = 1:SpElemProperties.SpP.UpdNum(SpPIdx)
         GlobalTaskIdx = GlobalTaskIdx +1;
+        Task(GlobalTaskIdx) = GenerEmptyTask;
         STP_Tgt = STP_Tgt+1;
         STOmega_Tgt = STOmega_Tgt+1;
         Task(GlobalTaskIdx).Type = "ST_FI_Prim";
         if CurrentTimeSec == 1
             Map_SpElem_to_FirstGlobTask.SpPIdx(SpPIdx)=GlobalTaskIdx;
         end
-        Task(GlobalTaskIdx).STP_Tgt     = STP_Tgt;
-        Task(GlobalTaskIdx).STOmega_Tgt = STOmega_Tgt;
+        Task(GlobalTaskIdx).STPtgt     = STP_Tgt;
+        Task(GlobalTaskIdx).STHtgt = STOmega_Tgt;
         STElemProperties.STP.TaskIdx(STP_Tgt)  = GlobalTaskIdx;
     end
 end
