@@ -1,4 +1,4 @@
-function [RefMeshPresetType,MeshMeasurements,LocalUpdateNum] = ParameterPreset(SelectPreset)
+function [RefMeshPresetType,MeshMeasurements,PMLMeasurement,LocalUpdateNum] = ParameterPreset(SelectPreset)
 global EPSILON
 switch SelectPreset
     case 1
@@ -27,18 +27,33 @@ switch SelectPreset
         MeshMeasurements.XCoord = 50;
         MeshMeasurements.YCoord = 30;
         MeshMeasurements.ZCoord = 30;
-        MeshMeasurements.XFineFromCoord = 30;
+        MeshMeasurements.XFineFromCoord = 20;
         MeshMeasurements.YFineFromCoord = 10;
         MeshMeasurements.ZFineFromCoord = 10;
-        MeshMeasurements.XFineToCoord   = 20;
+        MeshMeasurements.XFineToCoord   = 30;
         MeshMeasurements.YFineToCoord   = 20;
         MeshMeasurements.ZFineToCoord   = 20;
+        MeshMeasurements.XSFFromCoord = 1;
+        MeshMeasurements.YSFFromCoord = 1;
+        MeshMeasurements.ZSFFromCoord = 1;
+        MeshMeasurements.XSFToCoord   = MeshMeasurements.XCoord;
+        MeshMeasurements.YSFToCoord   = MeshMeasurements.YCoord;
+        MeshMeasurements.ZSFToCoord   = MeshMeasurements.ZCoord;
+        PMLMeasurement.depth = 5;
+        PMLMeasurement.xmax_negativeside =  5;
+        PMLMeasurement.xmin_positiveside = 45;
+        PMLMeasurement.ymax_negativeside =  5;
+        PMLMeasurement.ymin_positiveside = 25;
+        PMLMeasurement.zmax_negativeside =  5;
+        PMLMeasurement.zmin_positiveside = 25;
+        
         MeshMeasurements.dxCoarse = 1;
         MeshMeasurements.dyCoarse = 1;
         MeshMeasurements.dzCoarse = 1;
         XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
         YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
         ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
+
         XIdx_FineFrom = round(MeshMeasurements.XFineFromCoord/MeshMeasurements.dxCoarse)+1;
         if abs(MeshMeasurements.XFineToCoord-MeshMeasurements.XCoord)<EPSILON
             XIdx_FineTo = round(MeshMeasurements.XFineToCoord  /MeshMeasurements.dxCoarse) +1;
@@ -57,7 +72,24 @@ switch SelectPreset
         else
             ZIdx_FineTo = round(MeshMeasurements.ZFineToCoord  /MeshMeasurements.dzCoarse);
         end
-        
+                XIdx_TFFrom = round(MeshMeasurements.XTFFromCoord/MeshMeasurements.dxCoarse)+1;
+        if abs(MeshMeasurements.XTFToCoord-MeshMeasurements.XCoord)<EPSILON
+            XIdx_TFTo = round(MeshMeasurements.XTFToCoord  /MeshMeasurements.dxCoarse) +1;
+        else
+            XIdx_TFTo = round(MeshMeasurements.XTFToCoord  /MeshMeasurements.dxCoarse);
+        end
+        YIdx_TFFrom = round(MeshMeasurements.YTFFromCoord/MeshMeasurements.dyCoarse)+1;
+        if abs(MeshMeasurements.YTFToCoord-MeshMeasurements.YCoord)<EPSILON
+            YIdx_TFTo = round(MeshMeasurements.YTFToCoord  /MeshMeasurements.dyCoarse) +1;
+        else
+            YIdx_TFTo = round(MeshMeasurements.YTFToCoord  /MeshMeasurements.dyCoarse);
+        end
+        ZIdx_TFFrom = round(MeshMeasurements.ZTFFromCoord/MeshMeasurements.dzCoarse)+1;
+        if abs(MeshMeasurements.ZTFToCoord-MeshMeasurements.ZCoord)<EPSILON
+            ZIdx_TFTo = round(MeshMeasurements.ZTFToCoord  /MeshMeasurements.dzCoarse) +1;
+        else
+            ZIdx_TFTo = round(MeshMeasurements.ZTFToCoord  /MeshMeasurements.dzCoarse);
+        end
         
         LocalUpdateNum                      = ones(XSize+1,YSize+1,ZSize+1);
         MeshMeasurements.LocalGridFineness  = ones(XSize+1,YSize+1,ZSize+1);
@@ -66,6 +98,12 @@ switch SelectPreset
             = SubgridUpdateNum * ones(XIdx_FineTo-XIdx_FineFrom+1,YIdx_FineTo-YIdx_FineFrom+1,ZIdx_FineTo-ZIdx_FineFrom+1);
         MeshMeasurements.LocalGridFineness(XIdx_FineFrom:XIdx_FineTo,YIdx_FineFrom:YIdx_FineTo,ZIdx_FineFrom:ZIdx_FineTo) ...
             = SubgridFineness * ones(XIdx_FineTo-XIdx_FineFrom+1,YIdx_FineTo-YIdx_FineFrom+1,ZIdx_FineTo-ZIdx_FineFrom+1);
+        
+        
+        MeshMeasurements.isInSFRegion = false(XSize+1,YSize+1,ZSize+1);
+        MeshMeasurements.isInSFRegion(XIdx_TFFrom:XIdx_TFTo,YIdx_TFFrom:YIdx_TFTo,ZIdx_TFFrom:ZIdx_TFTo)...
+            = true;
+        
         
         disp(['Preset: FDTD with Subgird, RefMeshSize:', ...
             num2str(MeshMeasurements.XCoord), ...
@@ -83,6 +121,10 @@ switch SelectPreset
             'y = [',num2str(MeshMeasurements.YFineFromCoord),' ',num2str(MeshMeasurements.YFineToCoord),'], ',...
             'z = [',num2str(MeshMeasurements.ZFineFromCoord),' ',num2str(MeshMeasurements.ZFineToCoord),']. ']);
         disp(['Relative Temporal Discritization Width in Local Grids:',num2str(1/SubgridUpdateNum)])
+        disp(['Total-Field Region: x = [',num2str(MeshMeasurements.XTFFromCoord),' ',num2str(MeshMeasurements.XTFToCoord),'], ',...
+            'y = [',num2str(MeshMeasurements.YTFFromCoord),' ',num2str(MeshMeasurements.YTFToCoord),'], ',...
+            'z = [',num2str(MeshMeasurements.ZTFFromCoord),' ',num2str(MeshMeasurements.ZTFToCoord),']. ']);
+
     case 3
         RefMeshPresetType = 'FDTDWithSubgrid';
         SubgridFineness  = 2;
@@ -91,18 +133,33 @@ switch SelectPreset
         MeshMeasurements.XCoord = 40;
         MeshMeasurements.YCoord = 30;
         MeshMeasurements.ZCoord = 30;
-        MeshMeasurements.XFineFromCoord = 20;
+        MeshMeasurements.XFineFromCoord = 10;
         MeshMeasurements.YFineFromCoord = 10;
         MeshMeasurements.ZFineFromCoord = 10;
-        MeshMeasurements.XFineToCoord   = 30;
+        MeshMeasurements.XFineToCoord   = 20;
         MeshMeasurements.YFineToCoord   = 20;
         MeshMeasurements.ZFineToCoord   = 20;
+        MeshMeasurements.XTFFromCoord = 7;
+        MeshMeasurements.YTFFromCoord = 7;
+        MeshMeasurements.ZTFFromCoord = 7;
+        MeshMeasurements.XTFToCoord   = 33;
+        MeshMeasurements.YTFToCoord   = 23;
+        MeshMeasurements.ZTFToCoord   = 23;
+        PMLMeasurement.depth = 5;
+        PMLMeasurement.xmax_negativeside =  5;
+        PMLMeasurement.xmin_positiveside = 35;
+        PMLMeasurement.ymax_negativeside =  5;
+        PMLMeasurement.ymin_positiveside = 25;
+        PMLMeasurement.zmax_negativeside =  5;
+        PMLMeasurement.zmin_positiveside = 25;
+
         MeshMeasurements.dxCoarse = 1;
         MeshMeasurements.dyCoarse = 1;
         MeshMeasurements.dzCoarse = 1;
         XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
         YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
         ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
+        
         XIdx_FineFrom = round(MeshMeasurements.XFineFromCoord/MeshMeasurements.dxCoarse)+1;
         if abs(MeshMeasurements.XFineToCoord-MeshMeasurements.XCoord)<EPSILON
             XIdx_FineTo = round(MeshMeasurements.XFineToCoord  /MeshMeasurements.dxCoarse) +1;
@@ -122,6 +179,24 @@ switch SelectPreset
             ZIdx_FineTo = round(MeshMeasurements.ZFineToCoord  /MeshMeasurements.dzCoarse);
         end
         
+        XIdx_TFFrom = round(MeshMeasurements.XTFFromCoord/MeshMeasurements.dxCoarse)+1;
+        if abs(MeshMeasurements.XTFToCoord-MeshMeasurements.XCoord)<EPSILON
+            XIdx_TFTo = round(MeshMeasurements.XTFToCoord  /MeshMeasurements.dxCoarse) +1;
+        else
+            XIdx_TFTo = round(MeshMeasurements.XTFToCoord  /MeshMeasurements.dxCoarse);
+        end
+        YIdx_TFFrom = round(MeshMeasurements.YTFFromCoord/MeshMeasurements.dyCoarse)+1;
+        if abs(MeshMeasurements.YTFToCoord-MeshMeasurements.YCoord)<EPSILON
+            YIdx_TFTo = round(MeshMeasurements.YTFToCoord  /MeshMeasurements.dyCoarse) +1;
+        else
+            YIdx_TFTo = round(MeshMeasurements.YTFToCoord  /MeshMeasurements.dyCoarse);
+        end
+        ZIdx_TFFrom = round(MeshMeasurements.ZTFFromCoord/MeshMeasurements.dzCoarse)+1;
+        if abs(MeshMeasurements.ZTFToCoord-MeshMeasurements.ZCoord)<EPSILON
+            ZIdx_TFTo = round(MeshMeasurements.ZTFToCoord  /MeshMeasurements.dzCoarse) +1;
+        else
+            ZIdx_TFTo = round(MeshMeasurements.ZTFToCoord  /MeshMeasurements.dzCoarse);
+        end
         
         LocalUpdateNum                      = ones(XSize+1,YSize+1,ZSize+1);
         MeshMeasurements.LocalGridFineness  = ones(XSize+1,YSize+1,ZSize+1);
@@ -130,6 +205,10 @@ switch SelectPreset
             = SubgridUpdateNum * ones(XIdx_FineTo-XIdx_FineFrom+1,YIdx_FineTo-YIdx_FineFrom+1,ZIdx_FineTo-ZIdx_FineFrom+1);
         MeshMeasurements.LocalGridFineness(XIdx_FineFrom:XIdx_FineTo,YIdx_FineFrom:YIdx_FineTo,ZIdx_FineFrom:ZIdx_FineTo) ...
             = SubgridFineness * ones(XIdx_FineTo-XIdx_FineFrom+1,YIdx_FineTo-YIdx_FineFrom+1,ZIdx_FineTo-ZIdx_FineFrom+1);
+        
+        MeshMeasurements.isInSFRegion = true(XSize+1,YSize+1,ZSize+1);
+        MeshMeasurements.isInSFRegion(XIdx_TFFrom:XIdx_TFTo,YIdx_TFFrom:YIdx_TFTo,ZIdx_TFFrom:ZIdx_TFTo)...
+            = false;        
         
         disp(['Preset: FDTD with Subgird, RefMeshSize:', ...
             num2str(MeshMeasurements.XCoord), ...
@@ -147,20 +226,41 @@ switch SelectPreset
             'y = [',num2str(MeshMeasurements.YFineFromCoord),' ',num2str(MeshMeasurements.YFineToCoord),'], ',...
             'z = [',num2str(MeshMeasurements.ZFineFromCoord),' ',num2str(MeshMeasurements.ZFineToCoord),']. ']);
         disp(['Relative Temporal Discritization Width in Local Grids:',num2str(1/SubgridUpdateNum)])
+        disp(['Total-Field Region: x = [',num2str(MeshMeasurements.XTFFromCoord),' ',num2str(MeshMeasurements.XTFToCoord),'], ',...
+            'y = [',num2str(MeshMeasurements.YTFFromCoord),' ',num2str(MeshMeasurements.YTFToCoord),'], ',...
+            'z = [',num2str(MeshMeasurements.ZTFFromCoord),' ',num2str(MeshMeasurements.ZTFToCoord),']. ']);
     case 4
-            RefMeshPresetType = 'FDTDWithSubgrid';
+        RefMeshPresetType = 'FDTDWithSubgrid';
         SubgridFineness  = 2;
         SubgridUpdateNum = 2;
         
-        MeshMeasurements.XCoord = 30;
-        MeshMeasurements.YCoord = 20;
-        MeshMeasurements.ZCoord = 20;
-        MeshMeasurements.XFineFromCoord = 18;
-        MeshMeasurements.YFineFromCoord = 8;
-        MeshMeasurements.ZFineFromCoord = 8;
-        MeshMeasurements.XFineToCoord   = 22;
-        MeshMeasurements.YFineToCoord   = 12;
-        MeshMeasurements.ZFineToCoord   = 12;
+        MeshMeasurements.XCoord = 34;
+        MeshMeasurements.YCoord = 24;
+        MeshMeasurements.ZCoord = 24;
+        MeshMeasurements.XFineFromCoord = 19;
+        MeshMeasurements.YFineFromCoord = 9;
+        MeshMeasurements.ZFineFromCoord = 9;
+        MeshMeasurements.XFineToCoord   = 25;
+        MeshMeasurements.YFineToCoord   = 15;
+        MeshMeasurements.ZFineToCoord   = 15;
+        MeshMeasurements.XTFFromCoord = 7;
+        MeshMeasurements.YTFFromCoord = 7;
+        MeshMeasurements.ZTFFromCoord = 7;
+        MeshMeasurements.XTFToCoord   = 27;
+        MeshMeasurements.YTFToCoord   = 17;
+        MeshMeasurements.ZTFToCoord   = 17;
+        %         MeshMeasurements.XTFToCoord   = MeshMeasurements.XCoord;
+        %         MeshMeasurements.YTFToCoord   = MeshMeasurements.YCoord;
+        %         MeshMeasurements.ZTFToCoord   = MeshMeasurements.ZCoord;
+        PMLMeasurement.depth = 5;
+        PMLMeasurement.xmax_negativeside =  5;
+        PMLMeasurement.ymax_negativeside =  5;
+        PMLMeasurement.zmax_negativeside =  5;
+        PMLMeasurement.xmin_positiveside = 29;
+        PMLMeasurement.ymin_positiveside = 19;
+        PMLMeasurement.zmin_positiveside = 19;
+
+
         MeshMeasurements.dxCoarse = 1;
         MeshMeasurements.dyCoarse = 1;
         MeshMeasurements.dzCoarse = 1;
@@ -186,6 +286,25 @@ switch SelectPreset
             ZIdx_FineTo = round(MeshMeasurements.ZFineToCoord  /MeshMeasurements.dzCoarse);
         end
         
+        XIdx_TFFrom = round(MeshMeasurements.XTFFromCoord/MeshMeasurements.dxCoarse)+1;
+        if abs(MeshMeasurements.XTFToCoord-MeshMeasurements.XCoord)<EPSILON
+            XIdx_TFTo = round(MeshMeasurements.XTFToCoord  /MeshMeasurements.dxCoarse) +1;
+        else
+            XIdx_TFTo = round(MeshMeasurements.XTFToCoord  /MeshMeasurements.dxCoarse);
+        end
+        YIdx_TFFrom = round(MeshMeasurements.YTFFromCoord/MeshMeasurements.dyCoarse)+1;
+        if abs(MeshMeasurements.YTFToCoord-MeshMeasurements.YCoord)<EPSILON
+            YIdx_TFTo = round(MeshMeasurements.YTFToCoord  /MeshMeasurements.dyCoarse) +1;
+        else
+            YIdx_TFTo = round(MeshMeasurements.YTFToCoord  /MeshMeasurements.dyCoarse);
+        end
+        ZIdx_TFFrom = round(MeshMeasurements.ZTFFromCoord/MeshMeasurements.dzCoarse)+1;
+        if abs(MeshMeasurements.ZTFToCoord-MeshMeasurements.ZCoord)<EPSILON
+            ZIdx_TFTo = round(MeshMeasurements.ZTFToCoord  /MeshMeasurements.dzCoarse) +1;
+        else
+            ZIdx_TFTo = round(MeshMeasurements.ZTFToCoord  /MeshMeasurements.dzCoarse);
+        end
+
         
         LocalUpdateNum                      = ones(XSize+1,YSize+1,ZSize+1);
         MeshMeasurements.LocalGridFineness  = ones(XSize+1,YSize+1,ZSize+1);
@@ -194,6 +313,11 @@ switch SelectPreset
             = SubgridUpdateNum * ones(XIdx_FineTo-XIdx_FineFrom+1,YIdx_FineTo-YIdx_FineFrom+1,ZIdx_FineTo-ZIdx_FineFrom+1);
         MeshMeasurements.LocalGridFineness(XIdx_FineFrom:XIdx_FineTo,YIdx_FineFrom:YIdx_FineTo,ZIdx_FineFrom:ZIdx_FineTo) ...
             = SubgridFineness * ones(XIdx_FineTo-XIdx_FineFrom+1,YIdx_FineTo-YIdx_FineFrom+1,ZIdx_FineTo-ZIdx_FineFrom+1);
+        
+        MeshMeasurements.isInSFRegion = false(XSize+1,YSize+1,ZSize+1);
+        MeshMeasurements.isInSFRegion(XIdx_TFFrom:XIdx_TFTo,YIdx_TFFrom:YIdx_TFTo,ZIdx_TFFrom:ZIdx_TFTo)...
+            = true;
+
         
         disp(['Preset: FDTD with Subgird, RefMeshSize:', ...
             num2str(MeshMeasurements.XCoord), ...
@@ -211,6 +335,10 @@ switch SelectPreset
             'y = [',num2str(MeshMeasurements.YFineFromCoord),' ',num2str(MeshMeasurements.YFineToCoord),'], ',...
             'z = [',num2str(MeshMeasurements.ZFineFromCoord),' ',num2str(MeshMeasurements.ZFineToCoord),']. ']);
         disp(['Relative Temporal Discritization Width in Local Grids:',num2str(1/SubgridUpdateNum)])
+        disp(['Total-Field Region: x = [',num2str(MeshMeasurements.XTFFromCoord),' ',num2str(MeshMeasurements.XTFToCoord),'], ',...
+            'y = [',num2str(MeshMeasurements.YTFFromCoord),' ',num2str(MeshMeasurements.YTFToCoord),'], ',...
+            'z = [',num2str(MeshMeasurements.ZTFFromCoord),' ',num2str(MeshMeasurements.ZTFToCoord),']. ']);
+
 
     otherwise
         warning('Preset undefined.')

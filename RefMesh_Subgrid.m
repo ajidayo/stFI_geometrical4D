@@ -1,4 +1,4 @@
-function [sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties,ElemPer,SpElemPositionIdx] = RefMesh_Subgrid(MeshMeasurements,LocalUpdateNum)
+function [sG,sC,sD,NodePos,Num_of_Elem,SpElemProperties,ElemPer,SpElemPositionIdx,EqualKappaGroupIdx] = RefMesh_Subgrid(MeshMeasurements,LocalUpdateNum)
 global EPSILON
 XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
 YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
@@ -69,6 +69,7 @@ end
 NodePos.Prim = Subgrid_NodePos_Prim(SpElemPositionIdx,ElemPer,ElemFineness,isOnFineGridCorner,sG,sC,sD,MeshMeasurements);
 
 disp('RefMesh_Subgrid: Setting UpdateNumbers for each Volumes')
+SpElemProperties.SpV.UpdNum = zeros(1,Num_of_Elem.SpV);
 for ZIdx = 1:ZSize
     for YIdx = 1:YSize
         for XIdx = 1:XSize
@@ -82,11 +83,27 @@ for ZIdx = 1:ZSize
     end
 end
 
-disp('RefMesh_Subgrid:Setting Boundary Condition - Electric Wall')
+disp('RefMesh_Subgrid: TF-SF Setting for each volumes')
+SpElemProperties.SpV.isInSFRegion = zeros(1,Num_of_Elem.SpV);
+for ZIdx = 1:ZSize
+    for YIdx = 1:YSize
+        for XIdx = 1:XSize
+            VolIdxList = ...
+                (1:ElemPer.VolPerCoarseGrid(XIdx,YIdx,ZIdx))...
+                +sum(ElemPer.VolPerCoarseGrid(1:XIdx-1,YIdx,ZIdx))...
+                +sum(ElemPer.VolPerXRow(1:YIdx-1,ZIdx))...
+                +sum(ElemPer.VolPerXYPlane(1:ZIdx-1));
+            SpElemProperties.SpV.isInSFRegion(VolIdxList) = MeshMeasurements.isInSFRegion(XIdx,YIdx,ZIdx);
+        end
+    end
+end
+
+
+disp('RefMesh_Subgrid: Setting Boundary Condition - Electric Wall')
 SpPPositionIdx = SpElemPositionIdx.SpP;
 SpElemProperties_SpP_ElecWall = false(1,Num_of_Elem.SpP);
 MeshEndsAt = [MeshMeasurements.XCoord;MeshMeasurements.YCoord;MeshMeasurements.ZCoord];    
-for SpPIdx = [...
+for YZSpPIdx = [...
         (1:ElemPer.YZFacePerYZPlane(1)) ...
         (sum(ElemPer.YZFacePerYZPlane(1:XSize))+1:ElemPer.YZFaceNum) ...
         ElemPer.YZFaceNum + (1:ElemPer.ZXFacePerZXPlane(1)) ...
@@ -95,36 +112,36 @@ for SpPIdx = [...
         ElemPer.YZFaceNum + ElemPer.ZXFaceNum + (sum(ElemPer.XYFacePerXYPlane(1:ZSize))+1:ElemPer.XYFaceNum)]
     %     NodeLogIdxs_DefFace = logical(logical(sC(SpPIdx,:))*logical(sG));
     %     PosOfFace = mean([NodePos.Prim(NodeLogIdxs_DefFace).Vec],2);
-    PosOfFace = SpDiscreteWidth_Coarse.*SpPPositionIdx(:,SpPIdx);
+    PosOfFace = SpDiscreteWidth_Coarse.*SpPPositionIdx(:,YZSpPIdx);
     if size(find(any([logical(abs(PosOfFace-[0;0;0])<EPSILON);...
             logical(abs(PosOfFace-MeshEndsAt)<EPSILON)],2)),1)...
             >=1
-        SpElemProperties_SpP_ElecWall(SpPIdx) = true;
+        SpElemProperties_SpP_ElecWall(YZSpPIdx) = true;
     end
 end
 SpElemProperties_SpS_PEC = false(1,Num_of_Elem.SpS);
-for SpPIdx = find(SpElemProperties_SpP_ElecWall)
-    for IncSpSIdx = find(sC(SpPIdx,:))
+for YZSpPIdx = find(SpElemProperties_SpP_ElecWall)
+    for IncSpSIdx = find(sC(YZSpPIdx,:))
         SpElemProperties_SpS_PEC(IncSpSIdx) = true;
     end
 end
 SpElemProperties.SpP.ElecWall = sparse(SpElemProperties_SpP_ElecWall);
 SpElemProperties.SpS.PEC = sparse(SpElemProperties_SpS_PEC);
 
-disp('RefMesh_Subgrid:Pre-calculating areas/lengths for primal/dual-faces/edges in FDTD-like region.')
+disp('RefMesh_Subgrid: Pre-calculating areas/lengths for primal/dual-faces/edges in FDTD-like region.')
 SpElemProperties_SpP_PrimAreaIsGiven = true(1,Num_of_Elem.SpP);
 SpElemProperties_SpP_DualLengIsGiven = true(1,Num_of_Elem.SpP);
 SpElemProperties_SpS_PrimLengIsGiven = true(1,Num_of_Elem.SpS);
 SpElemProperties_SpS_DualAreaIsGiven = true(1,Num_of_Elem.SpS);
 SpVFineness = ElemFineness.SpV;
-for SpPIdx = 1:Num_of_Elem.SpP
-    if mod(SpPIdx,round(0.1*Num_of_Elem.SpP)) == 1
-        disp(['Processing SpPIdx = ', num2str(SpPIdx),'/',num2str(Num_of_Elem.SpP)])
+for YZSpPIdx = 1:Num_of_Elem.SpP
+    if mod(YZSpPIdx,round(0.2*Num_of_Elem.SpP)) == 1
+        disp(['RefMesh_Subgrid: Pre-calculating areas/lengths, progress ', num2str(100*YZSpPIdx/Num_of_Elem.SpP),'%'])
     end
-    IncSpVIdx = find(sD(:,SpPIdx).');
-    if SpElemProperties_SpP_ElecWall(SpPIdx) == false
+    IncSpVIdx = find(sD(:,YZSpPIdx).');
+    if SpElemProperties_SpP_ElecWall(YZSpPIdx) == false
         if SpVFineness(IncSpVIdx(1)) ~= SpVFineness(IncSpVIdx(2))
-            SpPLogIdx_tgt = logical(logical(sD(:,SpPIdx).')*logical(sD));
+            SpPLogIdx_tgt = logical(logical(sD(:,YZSpPIdx).')*logical(sD));
             SpSLogIdx_tgt = logical(sC(SpPLogIdx_tgt,:));
             SpElemProperties_SpP_PrimAreaIsGiven(SpPLogIdx_tgt) = false;
             SpElemProperties_SpP_DualLengIsGiven(SpPLogIdx_tgt) = false;
@@ -134,7 +151,7 @@ for SpPIdx = 1:Num_of_Elem.SpP
     end
 end
 
-disp('RefMesh_Subgrid:Pre-calculating areas/lengths for primal/dual-faces/edges in FDTD-like region.')
+disp('RefMesh_Subgrid: Pre-calculating areas/lengths for primal/dual-faces/edges in FDTD-like region.')
 SpElemProperties_SpP_PrimArea = zeros(Num_of_Elem.SpP,1);
 SpElemProperties_SpP_DualLeng = zeros(Num_of_Elem.SpP,1);
 SpElemProperties_SpS_PrimLeng = zeros(Num_of_Elem.SpS,1);
@@ -148,11 +165,11 @@ StandardLength = ...
 SpNPositionIdx = SpElemPositionIdx.SpN;
 SpVPositionIdx = SpElemPositionIdx.SpV;
 if norm(StandardLength-[1;1;1])<EPSILON && norm(StandardArea-[1;1;1])<EPSILON
-    for SpPIdx = find(SpElemProperties_SpP_PrimAreaIsGiven)
-        SpElemProperties_SpP_PrimArea(SpPIdx) = ElemFineness.SpP(SpPIdx)^(-2);
+    for YZSpPIdx = find(SpElemProperties_SpP_PrimAreaIsGiven)
+        SpElemProperties_SpP_PrimArea(YZSpPIdx) = ElemFineness.SpP(YZSpPIdx)^(-2);
     end
-    for SpPIdx = find(SpElemProperties_SpP_DualLengIsGiven)
-        SpElemProperties_SpP_DualLeng(SpPIdx) = ElemFineness.SpP(SpPIdx)^(-1);
+    for YZSpPIdx = find(SpElemProperties_SpP_DualLengIsGiven)
+        SpElemProperties_SpP_DualLeng(YZSpPIdx) = ElemFineness.SpP(YZSpPIdx)^(-1);
     end
     for SpSIdx = find(SpElemProperties_SpS_PrimLengIsGiven)
         SpElemProperties_SpS_PrimLeng(SpSIdx) = ElemFineness.SpS(SpSIdx)^(-1);
@@ -162,14 +179,14 @@ if norm(StandardLength-[1;1;1])<EPSILON && norm(StandardArea-[1;1;1])<EPSILON
     end
 else
     warning('StandardLength~=1 or StandardArea~=1 - Unrecommended')
-    for SpPIdx = find(SpElemProperties_SpP_PrimAreaIsGiven)
-        PrimFaceDirec = SpVPositionIdx*sD(:,SpPIdx);
+    for YZSpPIdx = find(SpElemProperties_SpP_PrimAreaIsGiven)
+        PrimFaceDirec = SpVPositionIdx*sD(:,YZSpPIdx);
         PrimFaceDirec = norm(PrimFaceDirec).^(-1)*PrimFaceDirec;
-        SpElemProperties_SpP_PrimArea(SpPIdx) = ElemFineness.SpP(SpPIdx)^(-2)*dot(PrimFaceDirec.',StandardArea.*PrimFaceDirec);
+        SpElemProperties_SpP_PrimArea(YZSpPIdx) = ElemFineness.SpP(YZSpPIdx)^(-2)*dot(PrimFaceDirec.',StandardArea.*PrimFaceDirec);
     end
-    for SpPIdx = find(SpElemProperties_SpP_DualLengIsGiven)
-        DualEdge = StandardLength.*(SpVPositionIdx*sD(:,SpPIdx));
-        SpElemProperties_SpP_DualLeng(SpPIdx) = norm(DualEdge);
+    for YZSpPIdx = find(SpElemProperties_SpP_DualLengIsGiven)
+        DualEdge = StandardLength.*(SpVPositionIdx*sD(:,YZSpPIdx));
+        SpElemProperties_SpP_DualLeng(YZSpPIdx) = norm(DualEdge);
     end
     for SpSIdx = find(SpElemProperties_SpS_PrimLengIsGiven)
         PrimEdge = StandardLength.*(SpNPositionIdx*sG(SpSIdx,:).');
@@ -190,6 +207,115 @@ SpElemProperties.SpP.DualLeng = SpElemProperties_SpP_DualLeng;
 SpElemProperties.SpS.PrimLeng = SpElemProperties_SpS_PrimLeng;
 SpElemProperties.SpS.DualArea = SpElemProperties_SpS_DualArea;
 
+%% defining groups of faces, edges with same kappa
+[EqualKappaGroupIdx.SpP,EqualKappaGroupIdx.SpS] = EqualKappaGrouping(MeshMeasurements,ElemPer,Num_of_Elem);
+end
+function [EqualKappaGroupIdx_SpP,EqualKappaGroupIdx_SpS] = EqualKappaGrouping(MeshMeasurements,ElemPer,Num_of_Elem)
+XSize = MeshMeasurements.XCoord/MeshMeasurements.dxCoarse;
+YSize = MeshMeasurements.YCoord/MeshMeasurements.dyCoarse;
+ZSize = MeshMeasurements.ZCoord/MeshMeasurements.dzCoarse;
+EqualKappaGroupIdx_SpP = zeros(1,Num_of_Elem.SpP);
+EqualKappaGroupIdx_SpS = zeros(1,Num_of_Elem.SpS);
+EFDCGroupData = struct('Code', []);
+for ZIdx = 1:ZSize
+    for YIdx = 1:YSize
+        for XIdx = 1:XSize
+            FinenessDistributionCode = convertCharsToStrings(join([...
+                num2str(MeshMeasurements.LocalGridFineness(max(XIdx-1,1    ),max(YIdx-1,1    ),max(ZIdx-1,1    ))),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx             ,max(YIdx-1,1    ),max(ZIdx-1,1    ))),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx+1           ,max(YIdx-1,1    ),max(ZIdx-1,1    ))),...
+                num2str(MeshMeasurements.LocalGridFineness(max(XIdx-1,1    ),YIdx             ,max(ZIdx-1,1    ))),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx             ,YIdx             ,max(ZIdx-1,1    ))),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx+1           ,YIdx             ,max(ZIdx-1,1    ))),...
+                num2str(MeshMeasurements.LocalGridFineness(max(XIdx-1,1    ),YIdx+1           ,max(ZIdx-1,1    ))),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx             ,YIdx+1           ,max(ZIdx-1,1    ))),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx+1           ,YIdx+1           ,max(ZIdx-1,1    ))),...
+                num2str(MeshMeasurements.LocalGridFineness(max(XIdx-1,1    ),max(YIdx-1,1    ),ZIdx             )),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx             ,max(YIdx-1,1    ),ZIdx             )),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx+1           ,max(YIdx-1,1    ),ZIdx             )),...
+                num2str(MeshMeasurements.LocalGridFineness(max(XIdx-1,1    ),YIdx             ,ZIdx             )),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx             ,YIdx             ,ZIdx             )),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx+1           ,YIdx             ,ZIdx             )),...
+                num2str(MeshMeasurements.LocalGridFineness(max(XIdx-1,1    ),YIdx+1           ,ZIdx             )),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx             ,YIdx+1           ,ZIdx             )),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx+1           ,YIdx+1           ,ZIdx             )),...
+                num2str(MeshMeasurements.LocalGridFineness(max(XIdx-1,1    ),max(YIdx-1,1    ),ZIdx+1           )),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx             ,max(YIdx-1,1    ),ZIdx+1           )),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx+1           ,max(YIdx-1,1    ),ZIdx+1           )),...
+                num2str(MeshMeasurements.LocalGridFineness(max(XIdx-1,1    ),YIdx             ,ZIdx+1           )),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx             ,YIdx             ,ZIdx+1           )),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx+1           ,YIdx             ,ZIdx+1           )),...
+                num2str(MeshMeasurements.LocalGridFineness(max(XIdx-1,1    ),YIdx+1           ,ZIdx+1           )),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx             ,YIdx+1           ,ZIdx+1           )),...
+                num2str(MeshMeasurements.LocalGridFineness(XIdx+1           ,YIdx+1           ,ZIdx+1           ))...
+                ]));
+            YZSpPIdx = (1:ElemPer.YZFacePerCoarseGrid(XIdx,YIdx,ZIdx)) ...
+                + sum(ElemPer.YZFacePerCoarseGrid(XIdx,1:YIdx-1,ZIdx)) ...
+                + sum(ElemPer.YZFacePerYRow(1:ZIdx-1,XIdx))...
+                + sum(ElemPer.YZFacePerYZPlane(1:XIdx-1));
+            ZXSpPIdx = (1:ElemPer.ZXFacePerCoarseGrid(XIdx,YIdx,ZIdx))...
+                + sum(ElemPer.ZXFacePerCoarseGrid(XIdx,YIdx,1:ZIdx-1)) ...
+                + sum(ElemPer.ZXFacePerZRow(1:XIdx-1,YIdx))...
+                + sum(ElemPer.ZXFacePerZXPlane(1:YIdx-1))...
+                + ElemPer.YZFaceNum;
+            XYSpPIdx = (1:ElemPer.XYFacePerCoarseGrid(XIdx,YIdx,ZIdx)) ...
+                + sum(ElemPer.XYFacePerCoarseGrid(1:XIdx-1,YIdx,ZIdx)) ... 
+                + sum(ElemPer.XYFacePerXRow(1:YIdx-1,ZIdx))...
+                + sum(ElemPer.XYFacePerXYPlane(1:ZIdx-1))...
+                + ElemPer.YZFaceNum + ElemPer.ZXFaceNum;
+            SpPIdx = [YZSpPIdx ZXSpPIdx XYSpPIdx];
+            SpPLogIdx = sparse(1,SpPIdx,true,1,Num_of_Elem.SpP);
+            XSpSIdx = (1:ElemPer.XEdgePerCoarseGrid(XIdx,YIdx,ZIdx)) ...
+                + sum(ElemPer.XEdgePerCoarseGrid(XIdx,1:YIdx-1,ZIdx)) ...
+                + sum(ElemPer.XEdgePerYRow(1:ZIdx-1,XIdx))...
+                + sum(ElemPer.XEdgePerYZPlane(1:XIdx-1));
+            YSpSIdx = (1:ElemPer.YEdgePerCoarseGrid(XIdx,YIdx,ZIdx)) ...
+                + sum(ElemPer.YEdgePerCoarseGrid(XIdx,YIdx,1:ZIdx-1)) ...
+                + sum(ElemPer.YEdgePerZRow(1:XIdx-1,YIdx))...
+                + sum(ElemPer.YEdgePerZXPlane(1:YIdx-1))...
+                + ElemPer.XEdgeNum;
+            ZSpSIdx = (1:ElemPer.ZEdgePerCoarseGrid(XIdx,YIdx,ZIdx)) ...
+                + sum(ElemPer.ZEdgePerCoarseGrid(1:XIdx-1,YIdx,ZIdx)) ...
+                + sum(ElemPer.ZEdgePerXRow(1:YIdx-1,ZIdx))...
+                + sum(ElemPer.ZEdgePerXYPlane(1:ZIdx-1))...
+                + ElemPer.XEdgeNum + ElemPer.YEdgeNum;
+            SpSIdx = [XSpSIdx YSpSIdx ZSpSIdx];
+            SpSLogIdx = sparse(1,SpSIdx,true,1,Num_of_Elem.SpS);
+            [EKGroupIdxOffset_SpP,EKGroupIdxOffset_SpS,EFDCGroupData] = EqualKappaGroupIdxOffset(FinenessDistributionCode,EFDCGroupData,size(SpPIdx,2),size(SpSIdx,2));
+            EqualKappaGroupIdx_SpP(SpPLogIdx) = EKGroupIdxOffset_SpP + (1:size(SpPIdx,2));
+            EqualKappaGroupIdx_SpS(SpSLogIdx) = EKGroupIdxOffset_SpS + (1:size(SpSIdx,2));
+        end
+    end
+end
+end
+
+%%
+function [SpPEKGroupIdxOffset,SpSEKGroupIdxOffset,EFDCGroupData] = EqualKappaGroupIdxOffset(EFDCode,EFDCGroupData,SpPIdxNum,SpSIdxNum)
+if isempty(EFDCGroupData.Code)
+    NewGroupIdx = 1;    
+    EFDCGroupData.Code = EFDCode;
+    EFDCGroupData.IncludedSpPNum(NewGroupIdx) = SpPIdxNum;
+    EFDCGroupData.IncludedSpSNum(NewGroupIdx) = SpSIdxNum;
+    EFDCGroupData.SpPEKGroupIdxOffset(NewGroupIdx) = 0;
+    EFDCGroupData.SpSEKGroupIdxOffset(NewGroupIdx) = 0;
+    SpPEKGroupIdxOffset = EFDCGroupData.SpPEKGroupIdxOffset(NewGroupIdx);
+    SpSEKGroupIdxOffset = EFDCGroupData.SpSEKGroupIdxOffset(NewGroupIdx);
+    return
+end
+GroupIdx = find(EFDCGroupData.Code==EFDCode,1);
+if isempty(GroupIdx)
+    NewGroupIdx = (size(EFDCGroupData.Code,2)+1);
+    EFDCGroupData.Code(NewGroupIdx) = EFDCode;
+    EFDCGroupData.IncludedSpPNum(NewGroupIdx) = SpPIdxNum;
+    EFDCGroupData.IncludedSpSNum(NewGroupIdx) = SpSIdxNum;
+    EFDCGroupData.SpPEKGroupIdxOffset(NewGroupIdx) = EFDCGroupData.SpPEKGroupIdxOffset(NewGroupIdx-1)+EFDCGroupData.IncludedSpPNum(NewGroupIdx-1); 
+    EFDCGroupData.SpSEKGroupIdxOffset(NewGroupIdx) = EFDCGroupData.SpSEKGroupIdxOffset(NewGroupIdx-1)+EFDCGroupData.IncludedSpSNum(NewGroupIdx-1); 
+    SpPEKGroupIdxOffset = EFDCGroupData.SpPEKGroupIdxOffset(NewGroupIdx);
+    SpSEKGroupIdxOffset = EFDCGroupData.SpSEKGroupIdxOffset(NewGroupIdx);
+else 
+    SpPEKGroupIdxOffset = EFDCGroupData.SpPEKGroupIdxOffset(GroupIdx);
+    SpSEKGroupIdxOffset = EFDCGroupData.SpSEKGroupIdxOffset(GroupIdx);
+end
 end
 %%
 function ElemPer = CountElemPerCoarseGrid_Row_Plane_TotalNum(MeshMeasurements)

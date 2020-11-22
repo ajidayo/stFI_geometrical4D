@@ -1,4 +1,4 @@
-function [SpElemProperties,STElemProperties,Num_of_Elem,SigmaSpV] = Properties_of_Sp_Elements(sG,sC,sD,SpElemProperties,Num_of_Elem,NodePos)
+function [SpElemProperties,STElemProperties,Num_of_Elem,SigmaSpV] = Properties_of_Sp_Elements(sG,sC,sD,SpElemProperties,Num_of_Elem,NodePosDual_M,FuncHandle_sigma123)
 % global EPSILON
 disp('Properties_of_Sp_Elements: Determing Updating Numbers per timestep for each Sp-Element')
 %% UpdNum
@@ -97,87 +97,67 @@ STElemProperties.STP.TaskIdx = zeros(1,Num_of_Elem.STP);
 disp('Properties_of_Sp_Elements: Determing Dof-calculating tasks by which each Field-DoF is updated.')
 % First check if SpPs are on dt-Interfaces. Interface SpPs belongs to ST_FI-region.
 % SpPs adjacent to interface-SpPs belongs to ST_FI-region.
-SpElemProperties.SpP.Belong_to_ST_FI = logical(sparse(1,Num_of_Elem.SpP));
-SpElemProperties.SpS.Belong_to_ST_FI = logical(sparse(1,Num_of_Elem.SpS));
-SpElemProperties.SpP.UpdNumBoundary  = logical(sparse(1,Num_of_Elem.SpP));
-SpElemProperties.SpS.UpdNumBoundary  = logical(sparse(1,Num_of_Elem.SpS));
-% AdjM_SpP_via_SpV = sD.'*sD;
+SpElemProperties_SpP_Belong_to_ST_FI = false(1,Num_of_Elem.SpP);
+SpElemProperties_SpS_Belong_to_ST_FI = false(1,Num_of_Elem.SpS);
+SpElemProperties_SpP_UpdNumBoundary  = false(1,Num_of_Elem.SpP);
+SpElemProperties_SpS_UpdNumBoundary  = false(1,Num_of_Elem.SpS);
+SpElemProperties_SpV_Belong_to_ST_FI = false(1,Num_of_Elem.SpV);
+SpElemProperties_SpV_IncToSTFISpP    = false(1,Num_of_Elem.SpV);
 for SpPIdx = 1:Num_of_Elem.SpP
-    Sum = 0;
-    IncSpV_List = find(sD(:,SpPIdx)).';
-    for IncSpV = IncSpV_List
-        Sum = Sum + SpElemProperties.SpV.UpdNum(IncSpV);
+    if mod(SpPIdx,round(0.2*Num_of_Elem.SpP)) == 1
+        disp(['Properties_of_Sp_Elements: Detecting STFI SpPs, current progress - ', num2str(100*SpPIdx/Num_of_Elem.SpP), '%'])
     end
-    if Sum == size(IncSpV_List,2)*SpElemProperties.SpV.UpdNum(IncSpV_List(1))
-        SpElemProperties.SpP.Belong_to_ST_FI(SpPIdx) = false;
-    else
-        SpElemProperties.SpP.Belong_to_ST_FI(SpPIdx) = true;
-        SpElemProperties.SpP.UpdNumBoundary(SpPIdx)  = true;
-        for IncSpS = find(sC(SpPIdx,:))
-            SpElemProperties.SpS.UpdNumBoundary(IncSpS)  = true;
-            SpElemProperties.SpS.Belong_to_ST_FI(IncSpS) = true;
-        end
+    if size(unique(SpElemProperties.SpV.UpdNum(logical(sD(:,SpPIdx).'))),2)~=1
+        SpElemProperties_SpP_Belong_to_ST_FI(SpPIdx) = true;
+        SpElemProperties_SpP_UpdNumBoundary(SpPIdx)  = true;
+        IncSpSLogIdx = logical(sC(SpPIdx,:));
+        SpElemProperties_SpS_UpdNumBoundary(IncSpSLogIdx)  = true;
+        SpElemProperties_SpS_Belong_to_ST_FI(IncSpSLogIdx) = true;
     end
 end
-for SpSIdx = find(SpElemProperties.SpS.Belong_to_ST_FI==true)
-    for IncSpP = find(sC(:,SpSIdx)).'
-        SpElemProperties.SpP.Belong_to_ST_FI(IncSpP) = true;
-    end
-    for AdjSpS = find(logical(sG(SpSIdx,:))*logical(sG).')
-        SpElemProperties.SpS.Belong_to_ST_FI(AdjSpS) = true;
-    end
+SpSsAdjToSpS_viaSpNs = logical(logical(sG)*logical(sG).');
+for SpSIdx = find(SpElemProperties_SpS_Belong_to_ST_FI==true)
+    SpElemProperties_SpP_Belong_to_ST_FI(logical(sC(:,SpSIdx).')) = true;
+    SpElemProperties_SpS_Belong_to_ST_FI(SpSsAdjToSpS_viaSpNs(SpSIdx,:)) = true;
 end
-
-SpElemProperties.SpV.Belong_to_ST_FI = logical(sparse(1,Num_of_Elem.SpV));
-for SpPIdx = find(SpElemProperties.SpP.Belong_to_ST_FI)
-    for IncSpV = find(sD(:,SpPIdx).')
-        SpElemProperties.SpV.Belong_to_ST_FI(IncSpV) = true;
-        SpElemProperties.SpV.IncToSTFISpP(IncSpV) = true;
-    end
+for SpPIdx = find(SpElemProperties_SpP_Belong_to_ST_FI)
+    IncSpVLogIdx = logical(sD(:,SpPIdx).');
+    SpElemProperties_SpV_Belong_to_ST_FI(IncSpVLogIdx) = true;
+    SpElemProperties_SpV_IncToSTFISpP(IncSpVLogIdx) = true;
 end
+SpElemProperties.SpP.Belong_to_ST_FI = sparse(SpElemProperties_SpP_Belong_to_ST_FI);
+SpElemProperties.SpS.Belong_to_ST_FI = sparse(SpElemProperties_SpS_Belong_to_ST_FI);
+SpElemProperties.SpP.UpdNumBoundary  = sparse(SpElemProperties_SpP_UpdNumBoundary);
+SpElemProperties.SpS.UpdNumBoundary  = sparse(SpElemProperties_SpS_UpdNumBoundary);
+SpElemProperties.SpV.Belong_to_ST_FI = sparse(SpElemProperties_SpV_Belong_to_ST_FI); 
+SpElemProperties.SpV.IncToSTFISpP    = sparse(SpElemProperties_SpV_IncToSTFISpP);
 
 %% PML
-NodePosDual_M = zeros(3,Num_of_Elem.SpV) ;
-for SpVIdx = 1:Num_of_Elem.SpV
-    NodePosDual_M(:,SpVIdx) = NodePos.Dual(SpVIdx).Vec;
-end
-
 SigmaSpV = zeros(3,Num_of_Elem.SpV); 
 SpElemProperties_SpS_PML        = false(1,Num_of_Elem.SpS);
 SpElemProperties_SpP_PML        = false(1,Num_of_Elem.SpP);
+IncIncSpS = logical(logical(sD)*logical(sC));
 for SpVIdx = 1:Num_of_Elem.SpV
-    if mod(SpVIdx,round(0.2*Num_of_Elem.SpV)) == 0
-        disp(['Properties_of_Sp_Elements: Computing SigmaSpV. Current progress - ', num2str(100*SpVIdx/Num_of_Elem.SpV), "%"])
+    if mod(SpVIdx,round(0.2*Num_of_Elem.SpV)) == 1
+        disp(['Properties_of_Sp_Elements: Computing SigmaSpV, current progress - ', num2str(100*SpVIdx/Num_of_Elem.SpV), '%'])
     end
-    SigmaSpV(:,SpVIdx) = func_sigma_123(NodePosDual_M(:,SpVIdx));
+    SigmaSpV(:,SpVIdx) = FuncHandle_sigma123(NodePosDual_M(:,SpVIdx));
     if norm(SigmaSpV(:,SpVIdx))>0
-        for IncSpPIdx = find(sD(SpVIdx,:))
-            SpElemProperties_SpP_PML(IncSpPIdx)=true;
-            for IncSpSIdx = find(sC(IncSpPIdx,:))
-                SpElemProperties_SpS_PML(IncSpSIdx)=true;
-            end
-        end
+        SpElemProperties_SpP_PML(logical(sD(SpVIdx,:)))=true;
+        SpElemProperties_SpS_PML(IncIncSpS(SpVIdx,:))=true;
     end
 end
 SpElemProperties.SpS.PML = SpElemProperties_SpS_PML;
 SpElemProperties.SpP.PML = SpElemProperties_SpP_PML;
 
+Num_of_Elem.PMLSpP = size(find(SpElemProperties.SpP.PML==true),2);
+Num_of_Elem.PMLSpS = size(find(SpElemProperties.SpS.PML==true),2);
+Num_of_Elem.TilikePMLImagDualSTP = sum((SpElemProperties.SpP.UpdNum(logical(SpElemProperties.SpP.PML))+1),1);
+Num_of_Elem.SplikePMLImagDualSTP = sum((SpElemProperties.SpS.UpdNum(logical(SpElemProperties.SpS.PML))+1),1);
+Num_of_Elem.PMLImagDualSTP       = Num_of_Elem.TilikePMLImagDualSTP+Num_of_Elem.SplikePMLImagDualSTP;
+
 SpElemProperties.SpP.FirstPMLImagDualSTP=sparse(1,Num_of_Elem.SpP);
 SpElemProperties.SpS.FirstPMLImagDualSTP=sparse(1,Num_of_Elem.SpS);
-
-Num_of_PMLTilikeImagDualSTP=0;
-for SpPIdx = find(SpElemProperties.SpP.PML)
-    Num_of_PMLTilikeImagDualSTP=Num_of_PMLTilikeImagDualSTP+1+SpElemProperties.SpP.UpdNum(SpPIdx);
-end
-Num_of_Elem.TilikePMLImagDualSTP = Num_of_PMLTilikeImagDualSTP;
-Num_of_PMLSplikeImagDualSTP=0;
-for SpSIdx = find(SpElemProperties.SpS.PML)
-    Num_of_PMLSplikeImagDualSTP=Num_of_PMLSplikeImagDualSTP+1+SpElemProperties.SpS.UpdNum(SpSIdx);
-end
-Num_of_Elem.SplikePMLImagDualSTP = Num_of_PMLSplikeImagDualSTP;
-Num_of_Elem.PMLImagDualSTP= Num_of_Elem.TilikePMLImagDualSTP+Num_of_Elem.SplikePMLImagDualSTP;
-
-
 PMLImagDualSTPIdx = 1;
 for SpPIdx = find(SpElemProperties.SpP.PML==true)
     SpElemProperties.SpP.FirstPMLImagDualSTP(SpPIdx) = PMLImagDualSTPIdx;
@@ -188,8 +168,24 @@ for SpSIdx = find(SpElemProperties.SpS.PML==true)
     PMLImagDualSTPIdx = PMLImagDualSTPIdx + SpElemProperties.SpS.UpdNum(SpSIdx)+1;
 end
 
-Num_of_Elem.PMLSpP = size(find(SpElemProperties.SpP.PML==true),2);
-Num_of_Elem.PMLSpS = size(find(SpElemProperties.SpS.PML==true),2);
+%% find TF-SF Boundary
+disp('Properties_of_Sp_Elements: Detecting TF-SF Boundaries')
+SpElemProperties.SpP.isInSFRegion     = true(1,Num_of_Elem.SpP);
+SpElemProperties.SpS.isInSFRegion     = true(1,Num_of_Elem.SpS);
+for SpVIdx = find(SpElemProperties.SpV.isInSFRegion==false)
+    SpElemProperties.SpP.isInSFRegion(logical(sD(SpVIdx,:))) = false;
+end
+for SpPIdx = find(SpElemProperties.SpP.isInSFRegion==false)
+    SpElemProperties.SpS.isInSFRegion(logical(sC(SpPIdx,:))) = false;
+end
+SpElemProperties.SpP.isOnTFSFBoundary = false(1,Num_of_Elem.SpP);
+SpElemProperties.SpS.isOnTFSFBoundary = false(1,Num_of_Elem.SpS);
+for SpPIdx = 1:Num_of_Elem.SpP
+    if size(unique(SpElemProperties.SpV.isInSFRegion(logical(sD(:,SpPIdx).'))),2) ~=1
+        SpElemProperties.SpP.isOnTFSFBoundary(SpPIdx) = true;
+        SpElemProperties.SpS.isOnTFSFBoundary(logical(sC(SpPIdx,:))) = true;
+    end
+end
 
 
 %% Check Exclusivity of TaskTypes
@@ -198,6 +194,12 @@ if any(SpElemProperties.SpP.Belong_to_ST_FI.* SpElemProperties.SpP.PML)
 end
 if any(SpElemProperties.SpS.Belong_to_ST_FI.*SpElemProperties.SpS.PML)
     warning('More than one Sp-edges have both STFI and PML property (prohibited)')
+end
+if any(SpElemProperties.SpP.isOnTFSFBoundary.*SpElemProperties.SpP.PML)
+    warning('More than one Sp-faces have both isOnTFSFBoundary and PML property (prohibited)')
+end
+if any(SpElemProperties.SpS.isOnTFSFBoundary.*SpElemProperties.SpS.PML)
+    warning('More than one Sp-edges have both isOnTFSFBoundary and PML property (prohibited)')
 end
 
 %% position of Primal Faces

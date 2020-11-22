@@ -1,17 +1,16 @@
-function Source = GenerateSource(SourceCenterPos,MeshMeasurements,SpElemProperties,ElemPer,sC)
-global SourcePeriod
-SourcePeriod = 20;
+function Source = GenerateSource(SourceCenterPos,MeshMeasurements,SpElemProperties,ElemPer,sC,cdt)
+SourcePeriod = 150;
 WaveformPreset = 1;
 switch WaveformPreset
     case 1
         disp('GenerateSource: Waveform - Sinusoidal')
-        WaveformFunctionHandle = @sinewave;
+        WaveformFunctionHandle = @(w) sinewave(w,SourcePeriod);
     case 2
         disp('GenerateSource: Waveform - Constantly Zero')
         WaveformFunctionHandle = @zerowave;
 end
-Lightspeed = 1
-wavelength = Lightspeed/(1/SourcePeriod);
+SpeedOfLightInVacuum = 1
+wavelength = SpeedOfLightInVacuum/(1/SourcePeriod);
 disp(['Wavelength/CoarseGridSize = ', num2str(wavelength/max([MeshMeasurements.dxCoarse MeshMeasurements.dyCoarse MeshMeasurements.dzCoarse]) ) ])
 
 X_SourceCenter = round(SourceCenterPos(1));
@@ -40,13 +39,14 @@ Source = struct;
 FirstST_SourceIdx = 1;
 for SourceIdx = 1:size(SourceSpSIdx,2)
     SpSIdx = SourceSpSIdx(SourceIdx);
-    Source(SourceIdx).UpdNum                    = SpElemProperties.SpS.UpdNum(SpSIdx);
-    Source(SourceIdx).DualFace_tgt              = SpSIdx;
-    Source(SourceIdx).WaveformFunctionHandle    = WaveformFunctionHandle;
-    Source(SourceIdx).WaveformSign              = sC(LoopCoilSpPIdx(SourceIdx),SpSIdx);
-    Source(SourceIdx).Area_TargetDualFace       = 1;
-    Source(SourceIdx).FirstST_SourceIdx         = FirstST_SourceIdx;
-    FirstST_SourceIdx                           = FirstST_SourceIdx + Source(SourceIdx).UpdNum;
+    Source(SourceIdx).Elec_Magn             = 'Elec';
+    Source(SourceIdx).UpdNum                = SpElemProperties.SpS.UpdNum(SpSIdx);
+    Source(SourceIdx).DualFace_tgt          = SpSIdx;
+    Source(SourceIdx).SourceDoFFuncHandle   = @(w) sC(LoopCoilSpPIdx(SourceIdx),SpSIdx)*(cdt/SpElemProperties.SpS.UpdNum(SpSIdx))*WaveformFunctionHandle(w);
+%    Source(SourceIdx).WaveformSign              = 1;
+%    Source(SourceIdx).Area_TargetFace           = 1;
+    Source(SourceIdx).FirstST_SourceIdx     = FirstST_SourceIdx;
+    FirstST_SourceIdx                       = FirstST_SourceIdx + Source(SourceIdx).UpdNum;
 end
 
 % 
@@ -100,11 +100,10 @@ end
 
 end
 
-function val = sinewave(x)
-global SourcePeriod
-    val = sin(x/SourcePeriod);
+function val = sinewave(w,SourcePeriod)
+    val = sin(2*pi*w/SourcePeriod);
 end
 
-function val = zerowave(x)
-    val = 0*x;
+function val = zerowave(w)
+    val = 0*w;
 end

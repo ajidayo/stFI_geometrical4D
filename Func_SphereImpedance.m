@@ -1,6 +1,4 @@
-function Impedance = Func_Impedance(PosVec)
-Radius = 0;
-CenterPosVec = [25;15;15];
+function Impedance = Func_SphereImpedance(PosVec,CenterPosVec,Radius)
 if norm(PosVec-CenterPosVec)<Radius
     Impedance = 0.01;
 else

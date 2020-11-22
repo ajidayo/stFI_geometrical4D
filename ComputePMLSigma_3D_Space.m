@@ -11,8 +11,8 @@ Sigma_SpP_ThreeOneTwo = zeros(SpPNum,1);
 Sigma_SpS_OneTwoThree = zeros(SpSNum,1);
 Sigma_SpS_TwoThreeOne = zeros(SpSNum,1);
 Sigma_SpS_ThreeOneTwo = zeros(SpSNum,1);
-SigmaCalcMethod = "New"
-% SigmaCalcMethod = "Old"
+SigmaCalcMethod = "New";
+% SigmaCalcMethod = "Old";
 switch SigmaCalcMethod
     case "Old"
         for SpPIdx = find(SpElemProperties.SpP.PML)
@@ -83,13 +83,14 @@ switch SigmaCalcMethod
         end
         sCLogical = logical(sC);
         sDLogical = logical(sD);
+        IncIncSpVLogIdxMatrix = logical(sCLogical.'*sDLogical.');
         for SpSIdx = find(SpElemProperties.SpS.PML)
             if SpElemProperties.SpS.PEC(SpSIdx)
                 continue
             end
             EdgeDirec = NodePosPrim_M*sG(SpSIdx,:).';
             EdgeDirec = norm(EdgeDirec).^(-1)*EdgeDirec;
-            IncIncSpVLogIdx = logical(sDLogical*sCLogical(:,SpSIdx)).';
+            IncIncSpVLogIdx = IncIncSpVLogIdxMatrix(SpSIdx,:);
             SigmaTemp123 = size(find(IncIncSpVLogIdx),2).^(-1)*(SigmaSpV*IncIncSpVLogIdx.');
             SigmaTemp231 = [SigmaTemp123(2);SigmaTemp123(3);SigmaTemp123(1)];
             SigmaTemp312 = [SigmaTemp123(3);SigmaTemp123(1);SigmaTemp123(2)];

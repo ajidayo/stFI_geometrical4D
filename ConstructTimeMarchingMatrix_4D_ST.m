@@ -66,41 +66,65 @@ function TMM_Redundant = ...
 %disp('SingleTask_SpFI CALLED')
 %TMM_Onestep      = speye(size(TMM_Redundant,1),size(TMM_Redundant,2));
 
-%Sp_FI_Region_tgt = SpFI_TaskInfo.Sp_FI_Region_tgt;
 TimeSection_tgt  = Task.TimeSection_tgt;
 
-ConservedSTP_Faraday = true(Num_of_Elem.STP,1);
-ConservedSTP_Ampere  = true(Num_of_Elem.STP,1);
-Map_STPFutr_SpP         = logical(sparse(Num_of_Elem.STP,Num_of_Elem.SpP));
-Map_SpP_STPPast         = logical(sparse(Num_of_Elem.SpP,Num_of_Elem.STP));
-Map_STPFutr_SpS         = logical(sparse(Num_of_Elem.STP,Num_of_Elem.SpS));
-Map_SpS_STPPast         = logical(sparse(Num_of_Elem.SpS,Num_of_Elem.STP));
-Map_SpPinctoSpS_STPPast = logical(sparse(Num_of_Elem.SpP,Num_of_Elem.STP));
-Map_SpSinctoSpP_STPFutr = logical(sparse(Num_of_Elem.SpS,Num_of_Elem.STP));
-
-for SpPIdx  = Task.SpPtar
-    STPFutr = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)+TimeSection_tgt;
-    STPPast = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)+TimeSection_tgt-1;
-    Map_STPFutr_SpP(STPFutr,SpPIdx)    = true;
-    Map_SpP_STPPast(SpPIdx,STPPast)    = true;
-    ConservedSTP_Faraday(STPFutr)      = false;
-    for SpSIdx  = find(sC(SpPIdx,:))
-        STPFutr = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+TimeSection_tgt;
-        Map_SpSinctoSpP_STPFutr(SpSIdx,STPFutr)    = true;
-    end
+MatrixGeneratMethod = 'New'
+switch MatrixGeneratMethod
+    case 'New'
+        ConservedSTP_Faraday = true(Num_of_Elem.STP,1);
+        ConservedSTP_Ampere  = true(Num_of_Elem.STP,1);
+        
+        STPFutr_RefSpP = SpElemProperties.SpP.FirstSTPIdx(Task.SpPtar)+TimeSection_tgt;
+        STPPast_RefSpP = SpElemProperties.SpP.FirstSTPIdx(Task.SpPtar)+TimeSection_tgt-1;
+        Map_STPFutr_RefSpP = sparse(STPFutr_RefSpP,Task.SpPtar,true,Num_of_Elem.STP,Num_of_Elem.SpP);
+        Map_STPPast_RefSpP = sparse(STPPast_RefSpP,Task.SpPtar,true,Num_of_Elem.STP,Num_of_Elem.SpP);
+        ConservedSTP_Faraday(STPFutr_RefSpP)      = false;
+        IncSpSIdx  = find(sum(logical(sC(Task.SpPtar,:)),1));
+        STPFutr_RefIncSpS = SpElemProperties.SpS.FirstSTPIdx(IncSpSIdx)+TimeSection_tgt;
+        Map_STPFutr_RefIncSpS=sparse(STPFutr_RefIncSpS,IncSpSIdx,true,Num_of_Elem.STP,Num_of_Elem.SpS);       
+        
+        STPFutr_RefSpS = SpElemProperties.SpS.FirstSTPIdx(Task.SpStar)+TimeSection_tgt;
+        STPPast_RefSpS = SpElemProperties.SpS.FirstSTPIdx(Task.SpStar)+TimeSection_tgt-1;
+        Map_STPFutr_RefSpS = sparse(STPFutr_RefSpS,Task.SpStar,true,Num_of_Elem.STP,Num_of_Elem.SpS);
+        Map_STPPast_RefSpS = sparse(STPPast_RefSpS,Task.SpStar,true,Num_of_Elem.STP,Num_of_Elem.SpS);
+        ConservedSTP_Ampere(STPFutr_RefSpS)      = false;
+        IncSpPIdx  = find(sum(logical(sC(:,Task.SpStar).'),1));
+        STPPast_RefIncSpP = SpElemProperties.SpP.FirstSTPIdx(IncSpPIdx)+TimeSection_tgt-1;
+        Map_STPPast_RefIncSpP = sparse(STPPast_RefIncSpP,IncSpPIdx,true,Num_of_Elem.STP,Num_of_Elem.SpP);
+    case 'Old'
+        ConservedSTP_Faraday = true(Num_of_Elem.STP,1);
+        ConservedSTP_Ampere  = true(Num_of_Elem.STP,1);
+        
+        Map_STPFutr_RefSpP      = logical(sparse(Num_of_Elem.STP,Num_of_Elem.SpP));
+        Map_STPPast_RefSpP      = logical(sparse(Num_of_Elem.STP,Num_of_Elem.SpP));
+        Map_STPFutr_RefSpS      = logical(sparse(Num_of_Elem.STP,Num_of_Elem.SpS));
+        Map_STPPast_RefSpS      = logical(sparse(Num_of_Elem.STP,Num_of_Elem.SpS));
+        Map_STPPast_RefIncSpP   = logical(sparse(Num_of_Elem.STP,Num_of_Elem.SpP));
+        Map_STPFutr_RefIncSpS   = logical(sparse(Num_of_Elem.STP,Num_of_Elem.SpS));
+        
+        for SpPIdx  = Task.SpPtar
+            STPFutr = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)+TimeSection_tgt;
+            STPPast = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)+TimeSection_tgt-1;
+            Map_STPFutr_RefSpP(STPFutr,SpPIdx)    = true;
+            Map_STPPast_RefSpP(STPPast,SpPIdx)    = true;
+            ConservedSTP_Faraday(STPFutr)      = false;
+            for SpSIdx  = find(sC(SpPIdx,:))
+                STPFutr = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+TimeSection_tgt;
+                Map_STPFutr_RefIncSpS(STPFutr,SpSIdx)    = true;
+            end
+        end
+        for SpSIdx  = Task.SpStar
+            STPFutr = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+TimeSection_tgt;
+            STPPast = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+TimeSection_tgt-1;
+            Map_STPFutr_RefSpS(STPFutr,SpSIdx)    = true;
+            Map_STPPast_RefSpS(STPPast,SpSIdx)    = true;
+            ConservedSTP_Ampere(STPFutr)      = false;
+            for SpPIdx  = find(sC(:,SpSIdx)).'
+                STPPast = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)+TimeSection_tgt-1;
+                Map_STPPast_RefIncSpP(STPPast,SpPIdx)    = true;
+            end
+        end
 end
-for SpSIdx  = Task.SpStar
-    STPFutr = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+TimeSection_tgt;
-    STPPast = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)+TimeSection_tgt-1;
-    Map_STPFutr_SpS(STPFutr,SpSIdx)    = true;
-    Map_SpS_STPPast(SpSIdx,STPPast)    = true;
-    ConservedSTP_Ampere(STPFutr)      = false;
-    for SpPIdx  = find(sC(:,SpSIdx)).'
-        STPPast = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)+TimeSection_tgt-1;
-        Map_SpPinctoSpS_STPPast(SpPIdx,STPPast)    = true;
-    end
-end
-
 z       = spdiags(Kappa_over_Z.^(-1),0,Num_of_Elem.STP,Num_of_Elem.STP);
 zinv    = spdiags(Kappa_over_Z      ,0,Num_of_Elem.STP,Num_of_Elem.STP);
 
@@ -109,29 +133,47 @@ for SpSourceIdx = 1:size(Source,2)
     STSourceNum=STSourceNum+Source(SpSourceIdx).UpdNum;
 end
 
-SourcePattern = sparse(Num_of_Elem.SpS,STSourceNum);
+SourcePattern_Elec = sparse(Num_of_Elem.SpS,Num_of_Elem.STSource);
+SourcePattern_Magn = sparse(Num_of_Elem.SpP,Num_of_Elem.STSource);
 ST_SourceIdx = 0;
 for SpSourceIdx = 1:size(Source,2)
-    for CurrentTimeSec = 1:Source(SpSourceIdx).UpdNum 
-        ST_SourceIdx = ST_SourceIdx+1;
-        if ismember(Source(SpSourceIdx).DualFace_tgt,Task.SpStar) && CurrentTimeSec == TimeSection_tgt
-            SourcePattern(Source(SpSourceIdx).DualFace_tgt,ST_SourceIdx)=1;
-        end
+    switch Source(SpSourceIdx).Elec_Magn
+        case 'Elec'
+            for CurrentTimeSec = 1:Source(SpSourceIdx).UpdNum
+                ST_SourceIdx = ST_SourceIdx+1;
+                if ismember(Source(SpSourceIdx).DualFace_tgt,Task.SpStar) && CurrentTimeSec == TimeSection_tgt
+                    SourcePattern_Elec(Source(SpSourceIdx).DualFace_tgt,ST_SourceIdx)=1;
+                end
+            end
+        case 'Magn'
+            for CurrentTimeSec = 1:Source(SpSourceIdx).UpdNum
+                ST_SourceIdx = ST_SourceIdx+1;
+                if ismember(Source(SpSourceIdx).PrimFace_tgt,Task.SpPtar) && CurrentTimeSec == TimeSection_tgt
+                    SourcePattern_Magn(Source(SpSourceIdx).PrimFace_tgt,ST_SourceIdx)=1;
+                end
+            end
+        otherwise
+            warning('ConstructTimeMar... The value of field ''Elec_Magn'' must be either ''Elec'' or ''Magn''')
     end
 end
+
+DoFsAssigToSTPs = 1:Num_of_Elem.STP;
+STSourceDoFs = Num_of_Elem.STP+1:Num_of_Elem.STP+Num_of_Elem.STSource;
 % the minus for the dual grid is caused by the sign [z] has.
 TMM_Onestep = speye(size(TMM_Redundant,1),size(TMM_Redundant,2));
-TMM_Onestep(1:Num_of_Elem.STP,1:Num_of_Elem.STP) = ...
-    z*Map_STPFutr_SpS*(Map_SpS_STPPast - sC.'*Map_SpPinctoSpS_STPPast)*zinv...
+TMM_Onestep(DoFsAssigToSTPs,DoFsAssigToSTPs) = ...
+    z*Map_STPFutr_RefSpS*(Map_STPPast_RefSpS.' - sC.'*Map_STPPast_RefIncSpP.')*zinv...
     +spdiags(ConservedSTP_Ampere,0,Num_of_Elem.STP,Num_of_Elem.STP);
-TMM_Onestep(1:Num_of_Elem.STP,Num_of_Elem.STP+1:Num_of_Elem.STP+STSourceNum)...
-    = z*Map_STPFutr_SpS*SourcePattern;
+TMM_Onestep(DoFsAssigToSTPs,STSourceDoFs)...
+    = z*Map_STPFutr_RefSpS*SourcePattern_Elec;
 TMM_Redundant   = TMM_Onestep * TMM_Redundant;
 
 TMM_Onestep = speye(size(TMM_Redundant,1),size(TMM_Redundant,2));
-TMM_Onestep(1:Num_of_Elem.STP,1:Num_of_Elem.STP) = ...
-    Map_STPFutr_SpP*(Map_SpP_STPPast - sC  *Map_SpSinctoSpP_STPFutr)...
+TMM_Onestep(DoFsAssigToSTPs,DoFsAssigToSTPs) = ...
+    Map_STPFutr_RefSpP*(Map_STPPast_RefSpP.' - sC  *Map_STPFutr_RefIncSpS.')...
     +spdiags(ConservedSTP_Faraday,0,Num_of_Elem.STP,Num_of_Elem.STP);
+TMM_Onestep(DoFsAssigToSTPs,STSourceDoFs)...
+    = Map_STPFutr_RefSpP*SourcePattern_Magn;
 TMM_Redundant   = TMM_Onestep * TMM_Redundant;
 
 end
@@ -139,6 +181,7 @@ end
 %%
 function TMM_Redundant = ...
     SingleTask_PML(PML_TaskInfo,sC,Kappa_over_Z,Sigma,SpElemProperties,Num_of_Elem,TMM_Redundant)
+Z0 = 1;
 
 TimeSection_tgt   = PML_TaskInfo.TimeSection_tgt;
 
@@ -147,70 +190,103 @@ ConservedPrimDoF_ConstiG2F      = true(Num_of_Elem.STP,1);
 ConservedPMLDualDoF_ConstiF2G   = true(Num_of_Elem.PMLImagDualSTP,1);
 ConservedPMLDualDoF_Ampere      = true(Num_of_Elem.PMLImagDualSTP,1);
 
-% Num_of_DoF = Num_of_Elem.STP + Num_of_Elem.STSource + Num_of_Elem.PMLImagDualSTP;
+DoFFutr_RefSpP         = SpElemProperties.SpP.FirstSTPIdx(PML_TaskInfo.SpPtar)          +TimeSection_tgt  ;
+DoFPast_RefSpP         = SpElemProperties.SpP.FirstSTPIdx(PML_TaskInfo.SpPtar)          +TimeSection_tgt-1;
+PMLDualDoFFutr_RefSpP  = SpElemProperties.SpP.FirstPMLImagDualSTP(PML_TaskInfo.SpPtar)  +TimeSection_tgt  ;
+PMLDualDoFPast_RefSpP  = SpElemProperties.SpP.FirstPMLImagDualSTP(PML_TaskInfo.SpPtar)  +TimeSection_tgt-1;
 
-Map_DoFFutr_SpP             = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpP));
-Map_DoFPast_SpP             = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpP));
-Map_DoFFutr_SpS             = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpS));
-Map_DoFPast_SpS             = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpS));
-Map_PMLDualDoFPast_SpP      = logical(sparse(Num_of_Elem.PMLImagDualSTP ,Num_of_Elem.SpP));
-Map_PMLDualDoFPast_SpS      = logical(sparse(Num_of_Elem.PMLImagDualSTP ,Num_of_Elem.SpS));
-Map_PMLDualDoFFutr_SpP   = logical(sparse(Num_of_Elem.PMLImagDualSTP ,Num_of_Elem.SpP));
-Map_PMLDualDoFFutr_SpS   = logical(sparse(Num_of_Elem.PMLImagDualSTP ,Num_of_Elem.SpS));
-Map_DoFFutr_IncSpS          = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpS));
-Map_PMLDualDoFPast_IncSpP   = logical(sparse(Num_of_Elem.PMLImagDualSTP ,Num_of_Elem.SpP));
-Map_DoFPast_IncSpP          = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpP));
+Map_DoFFutr_SpP=sparse(DoFFutr_RefSpP,PML_TaskInfo.SpPtar,true,Num_of_Elem.STP,Num_of_Elem.SpP);
+Map_DoFPast_SpP=sparse(DoFPast_RefSpP,PML_TaskInfo.SpPtar,true,Num_of_Elem.STP,Num_of_Elem.SpP);
+Map_PMLDualDoFFutr_SpP=sparse(PMLDualDoFFutr_RefSpP,PML_TaskInfo.SpPtar,true,Num_of_Elem.PMLImagDualSTP,Num_of_Elem.SpP);
+Map_PMLDualDoFPast_SpP=sparse(PMLDualDoFPast_RefSpP,PML_TaskInfo.SpPtar,true,Num_of_Elem.PMLImagDualSTP,Num_of_Elem.SpP);
+ConservedPrimDoF_Faraday(DoFFutr_RefSpP)                   = false;
+ConservedPMLDualDoF_ConstiF2G(PMLDualDoFFutr_RefSpP)       = false;
 
-for SpPIdx  = PML_TaskInfo.SpPtar
-    DoFFutr         = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)          +TimeSection_tgt  ;
-    DoFPast         = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)          +TimeSection_tgt-1;
-    PMLDualDoFFutr  = SpElemProperties.SpP.FirstPMLImagDualSTP(SpPIdx)  +TimeSection_tgt  ;
-    PMLDualDoFPast  = SpElemProperties.SpP.FirstPMLImagDualSTP(SpPIdx)  +TimeSection_tgt-1;
-    
-    Map_DoFFutr_SpP(DoFFutr,SpPIdx)                     = true;
-    Map_DoFPast_SpP(DoFPast,SpPIdx)                     = true;
-    Map_PMLDualDoFFutr_SpP(PMLDualDoFFutr,SpPIdx)       = true;
-    Map_PMLDualDoFPast_SpP(PMLDualDoFPast,SpPIdx)       = true;
-    ConservedPrimDoF_Faraday(DoFFutr)                   = false;
-    ConservedPMLDualDoF_ConstiF2G(PMLDualDoFFutr)       = false;    
-    for IncSpSIdx  = find(sC(SpPIdx,:))
-        DoFFutr = SpElemProperties.SpS.FirstSTPIdx(IncSpSIdx)+TimeSection_tgt;
-        Map_DoFFutr_IncSpS(DoFFutr,IncSpSIdx)    = true;
-    end
-end
+IncSpSIdx  = find(sum(logical(sC(PML_TaskInfo.SpPtar,:)),1));
+DoFFutr_RefIncSpS = SpElemProperties.SpS.FirstSTPIdx(IncSpSIdx)+TimeSection_tgt;
+Map_DoFFutr_IncSpS = sparse(DoFFutr_RefIncSpS,IncSpSIdx,true,Num_of_Elem.STP,Num_of_Elem.SpS);
 
-for SpSIdx  = PML_TaskInfo.SpStar
-    DoFFutr         = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)          +TimeSection_tgt  ;
-    DoFPast         = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)          +TimeSection_tgt-1;
-    PMLDualDoFFutr  = SpElemProperties.SpS.FirstPMLImagDualSTP(SpSIdx)  +TimeSection_tgt  ;
-    PMLDualDoFPast  = SpElemProperties.SpS.FirstPMLImagDualSTP(SpSIdx)  +TimeSection_tgt-1;
-    
-    Map_DoFFutr_SpS(DoFFutr,SpSIdx)                     = true;
-    Map_DoFPast_SpS(DoFPast,SpSIdx)                     = true;
-    Map_PMLDualDoFFutr_SpS(PMLDualDoFFutr,SpSIdx)       = true;
-    Map_PMLDualDoFPast_SpS(PMLDualDoFPast,SpSIdx)       = true;
-    ConservedPrimDoF_ConstiG2F(DoFFutr)                 = false;
-    ConservedPMLDualDoF_Ampere(PMLDualDoFFutr)          = false;
-    for IncSpPIdx  = find(sC(:,SpSIdx).')
-        switch SpElemProperties.SpP.PML(IncSpPIdx)
-            case true
-                PMLDualDoFPast  = SpElemProperties.SpP.FirstPMLImagDualSTP(IncSpPIdx)   +TimeSection_tgt-1;
-                Map_PMLDualDoFPast_IncSpP(PMLDualDoFPast,IncSpPIdx)     = true;
-            case false
-                PrimSTPPast = SpElemProperties.SpP.FirstSTPIdx(IncSpPIdx) +TimeSection_tgt-1;
-                Map_DoFPast_IncSpP(PrimSTPPast,IncSpPIdx) = true;
-        end
-    end
-end
+DoFFutr_RefSpS         = SpElemProperties.SpS.FirstSTPIdx(PML_TaskInfo.SpStar)          +TimeSection_tgt  ;
+DoFPast_RefSpS         = SpElemProperties.SpS.FirstSTPIdx(PML_TaskInfo.SpStar)          +TimeSection_tgt-1;
+PMLDualDoFFutr_RefSpS  = SpElemProperties.SpS.FirstPMLImagDualSTP(PML_TaskInfo.SpStar)  +TimeSection_tgt  ;
+PMLDualDoFPast_RefIncSpP  = SpElemProperties.SpS.FirstPMLImagDualSTP(PML_TaskInfo.SpStar)  +TimeSection_tgt-1;
+
+Map_DoFFutr_SpS=sparse(DoFFutr_RefSpS,PML_TaskInfo.SpStar,true,Num_of_Elem.STP,Num_of_Elem.SpS);
+Map_DoFPast_SpS=sparse(DoFPast_RefSpS,PML_TaskInfo.SpStar,true,Num_of_Elem.STP,Num_of_Elem.SpS);
+Map_PMLDualDoFFutr_SpS=sparse(PMLDualDoFFutr_RefSpS,PML_TaskInfo.SpStar,true,Num_of_Elem.PMLImagDualSTP,Num_of_Elem.SpS);
+Map_PMLDualDoFPast_SpS=sparse(PMLDualDoFPast_RefIncSpP,PML_TaskInfo.SpStar,true,Num_of_Elem.PMLImagDualSTP,Num_of_Elem.SpS);
+ConservedPrimDoF_ConstiG2F(DoFFutr_RefSpS)                 = false;
+ConservedPMLDualDoF_Ampere(PMLDualDoFFutr_RefSpS)          = false;
+
+IncSpPIdx  = find(sum(logical(sC(:,PML_TaskInfo.SpStar).'),1));
+IncSpPLogIdx  = logical(sum(logical(sC(:,PML_TaskInfo.SpStar).'),1));
+IncSpPIdx_InPML = IncSpPIdx(logical(SpElemProperties.SpP.PML(IncSpPLogIdx)));
+IncSpPIdx_NonPML = IncSpPIdx(~logical(SpElemProperties.SpP.PML(IncSpPLogIdx)));
+PMLDualDoFPast_RefIncSpP  = SpElemProperties.SpP.FirstPMLImagDualSTP(IncSpPIdx_InPML)+TimeSection_tgt-1;
+DoFPast_RefIncSpP         = SpElemProperties.SpP.FirstSTPIdx(IncSpPIdx_NonPML)       +TimeSection_tgt-1;
+Map_PMLDualDoFPast_IncSpP = sparse(PMLDualDoFPast_RefIncSpP,IncSpPIdx_InPML ,true,Num_of_Elem.PMLImagDualSTP,Num_of_Elem.SpP);
+Map_DoFPast_IncSpP        = sparse(DoFPast_RefIncSpP,       IncSpPIdx_NonPML,true,Num_of_Elem.STP,           Num_of_Elem.SpP);
+
+% Map_DoFFutr_SpP             = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpP));
+% Map_DoFPast_SpP             = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpP));
+% Map_DoFFutr_SpS             = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpS));
+% Map_DoFPast_SpS             = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpS));
+% Map_PMLDualDoFPast_SpP      = logical(sparse(Num_of_Elem.PMLImagDualSTP ,Num_of_Elem.SpP));
+% Map_PMLDualDoFPast_SpS      = logical(sparse(Num_of_Elem.PMLImagDualSTP ,Num_of_Elem.SpS));
+% Map_PMLDualDoFFutr_SpP   = logical(sparse(Num_of_Elem.PMLImagDualSTP ,Num_of_Elem.SpP));
+% Map_PMLDualDoFFutr_SpS   = logical(sparse(Num_of_Elem.PMLImagDualSTP ,Num_of_Elem.SpS));
+% Map_DoFFutr_IncSpS          = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpS));
+% Map_PMLDualDoFPast_IncSpP   = logical(sparse(Num_of_Elem.PMLImagDualSTP ,Num_of_Elem.SpP));
+% Map_DoFPast_IncSpP          = logical(sparse(Num_of_Elem.STP            ,Num_of_Elem.SpP));
+
+
+% for SpPIdx  = PML_TaskInfo.SpPtar
+%     DoFFutr         = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)          +TimeSection_tgt  ;
+%     DoFPast         = SpElemProperties.SpP.FirstSTPIdx(SpPIdx)          +TimeSection_tgt-1;
+%     PMLDualDoFFutr  = SpElemProperties.SpP.FirstPMLImagDualSTP(SpPIdx)  +TimeSection_tgt  ;
+%     PMLDualDoFPast  = SpElemProperties.SpP.FirstPMLImagDualSTP(SpPIdx)  +TimeSection_tgt-1;
+%     
+%     Map_DoFFutr_SpP(DoFFutr,SpPIdx)                     = true;
+%     Map_DoFPast_SpP(DoFPast,SpPIdx)                     = true;
+%     Map_PMLDualDoFFutr_SpP(PMLDualDoFFutr,SpPIdx)       = true;
+%     Map_PMLDualDoFPast_SpP(PMLDualDoFPast,SpPIdx)       = true;
+%     ConservedPrimDoF_Faraday(DoFFutr)                   = false;
+%     ConservedPMLDualDoF_ConstiF2G(PMLDualDoFFutr)       = false;    
+%     for IncSpSIdx  = find(sC(SpPIdx,:))
+%         DoFFutr = SpElemProperties.SpS.FirstSTPIdx(IncSpSIdx)+TimeSection_tgt;
+%         Map_DoFFutr_IncSpS(DoFFutr,IncSpSIdx)    = true;
+%     end
+% end
+% 
+% for SpSIdx  = PML_TaskInfo.SpStar
+%     DoFFutr         = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)          +TimeSection_tgt  ;
+%     DoFPast         = SpElemProperties.SpS.FirstSTPIdx(SpSIdx)          +TimeSection_tgt-1;
+%     PMLDualDoFFutr  = SpElemProperties.SpS.FirstPMLImagDualSTP(SpSIdx)  +TimeSection_tgt  ;
+%     PMLDualDoFPast  = SpElemProperties.SpS.FirstPMLImagDualSTP(SpSIdx)  +TimeSection_tgt-1;
+%     
+%     Map_DoFFutr_SpS(DoFFutr,SpSIdx)                     = true;
+%     Map_DoFPast_SpS(DoFPast,SpSIdx)                     = true;
+%     Map_PMLDualDoFFutr_SpS(PMLDualDoFFutr,SpSIdx)       = true;
+%     Map_PMLDualDoFPast_SpS(PMLDualDoFPast,SpSIdx)       = true;
+%     ConservedPrimDoF_ConstiG2F(DoFFutr)                 = false;
+%     ConservedPMLDualDoF_Ampere(PMLDualDoFFutr)          = false;
+%     for IncSpPIdx  = find(sC(:,SpSIdx).')
+%         switch SpElemProperties.SpP.PML(IncSpPIdx)
+%             case true
+%                 PMLDualDoFPast  = SpElemProperties.SpP.FirstPMLImagDualSTP(IncSpPIdx)   +TimeSection_tgt-1;
+%                 Map_PMLDualDoFPast_IncSpP(PMLDualDoFPast,IncSpPIdx)     = true;
+%             case false
+%                 PrimSTPPast = SpElemProperties.SpP.FirstSTPIdx(IncSpPIdx) +TimeSection_tgt-1;
+%                 Map_DoFPast_IncSpP(PrimSTPPast,IncSpPIdx) = true;
+%         end
+%     end
+% end
 
 PMLDualDoF_Idxs = ...
     Num_of_Elem.STP+Num_of_Elem.STSource+1:...
     Num_of_Elem.STP+Num_of_Elem.STSource+Num_of_Elem.PMLImagDualSTP;
 PrimDoF_Idxs = 1:Num_of_Elem.STP;
 
-PMLON = true
-
-Z0 = 1;
 
 % Ampere
 % disp('Ampere')
@@ -219,10 +295,6 @@ PMLCoeff_Ampere_gSpPast = (1-0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpS.ThreeOneTwo)..
 PMLCoeff_Ampere_gSpPast = spdiags(PMLCoeff_Ampere_gSpPast,0,Num_of_Elem.SpS,Num_of_Elem.SpS);
 PMLCoeff_Ampere_gTi     = (1+0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpP.ThreeOneTwo).^(-1);
 PMLCoeff_Ampere_gTi     = spdiags(PMLCoeff_Ampere_gTi,0,Num_of_Elem.SpP,Num_of_Elem.SpP);
-if ~PMLON
-    PMLCoeff_Ampere_gSpPast = speye(Num_of_Elem.SpS);
-    PMLCoeff_Ampere_gTi     = speye(Num_of_Elem.SpP);
-end
 
 TMM_Onestep = speye(size(TMM_Redundant,1),size(TMM_Redundant,2));
 TMM_Onestep(PMLDualDoF_Idxs,PMLDualDoF_Idxs) = ...
@@ -247,11 +319,6 @@ PMLCoeff_ConstiG2F_gSpFutr = spdiags(PMLCoeff_ConstiG2F_gSpFutr,0,Num_of_Elem.Sp
 PMLCoeff_ConstiG2F_gSpPast= (1-0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpS.OneTwoThree)...
     .*(1+0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpS.TwoThreeOne).^(-1);
 PMLCoeff_ConstiG2F_gSpPast = spdiags(PMLCoeff_ConstiG2F_gSpPast,0,Num_of_Elem.SpS,Num_of_Elem.SpS);
-if ~PMLON
-    PMLCoeff_ConstiG2F_fTiPast = speye(Num_of_Elem.SpS);
-    PMLCoeff_ConstiG2F_gSpFutr = speye(Num_of_Elem.SpS);
-    PMLCoeff_ConstiG2F_gSpPast = speye(Num_of_Elem.SpS);
-end
 
 ZOverKappa_PrimDoFFutr = sparse(Num_of_Elem.STP,Num_of_Elem.STP);
 for SpSIdx = find(SpElemProperties.SpS.PML)
@@ -276,11 +343,6 @@ PMLCoeff_Faraday_fSpPast = spdiags(PMLCoeff_Faraday_fSpPast,0,Num_of_Elem.SpP,Nu
 PMLCoeff_Faraday_fTi     = (1+0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpS.ThreeOneTwo).^(-1);
 PMLCoeff_Faraday_fTi = spdiags(PMLCoeff_Faraday_fTi,0,Num_of_Elem.SpS,Num_of_Elem.SpS);
 
-if ~PMLON
-    PMLCoeff_Faraday_fSpPast    = speye(Num_of_Elem.SpP);
-    PMLCoeff_Faraday_fTi        = speye(Num_of_Elem.SpS);
-end
-
 TMM_Onestep = speye(size(TMM_Redundant,1),size(TMM_Redundant,2));
 TMM_Onestep(PrimDoF_Idxs,PrimDoF_Idxs) = ...
     Map_DoFFutr_SpP*(PMLCoeff_Faraday_fSpPast*Map_DoFPast_SpP.' -sC*PMLCoeff_Faraday_fTi*Map_DoFFutr_IncSpS.');
@@ -299,12 +361,6 @@ PMLCoeff_ConstiF2G_fSpFutr = spdiags(PMLCoeff_ConstiF2G_fSpFutr,0,Num_of_Elem.Sp
 PMLCoeff_ConstiF2G_fSpPast = (1-0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpP.OneTwoThree)...
     .*(1+0.5*Z0/PML_TaskInfo.UpdNum*Sigma.SpP.TwoThreeOne).^(-1);
 PMLCoeff_ConstiF2G_fSpPast = spdiags(PMLCoeff_ConstiF2G_fSpPast,0,Num_of_Elem.SpP,Num_of_Elem.SpP);
-
-if ~PMLON
-    PMLCoeff_ConstiF2G_gTiPast = speye(Num_of_Elem.SpP);
-    PMLCoeff_ConstiF2G_fSpFutr = speye(Num_of_Elem.SpP);
-    PMLCoeff_ConstiF2G_fSpPast = speye(Num_of_Elem.SpP);
-end
 
 KappaOverZ_PMLDualDoFFutr = sparse(Num_of_Elem.PMLImagDualSTP,Num_of_Elem.PMLImagDualSTP);
 for SpPIdx = find(SpElemProperties.SpP.PML)

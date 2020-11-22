@@ -1,12 +1,4 @@
-function value = func_sigma_123(PosVec)
-
-PMLMeasurement.depth = 5;
-PMLMeasurement.xmax_negativeside =  5;
-PMLMeasurement.xmin_positiveside = 25;
-PMLMeasurement.ymax_negativeside =  5;
-PMLMeasurement.ymin_positiveside = 15;
-PMLMeasurement.zmax_negativeside =  5;
-PMLMeasurement.zmin_positiveside = 15;
+function value = func_sigma_123(PosVec,PMLMeasurement)
 
 % PMLMeasurement.depth = 5;
 % PMLMeasurement.xmax_negativeside =  5;
